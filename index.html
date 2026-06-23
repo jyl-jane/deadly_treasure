@@ -590,8 +590,80 @@
     height: 64px;
     bottom: -2px;
   }
+  .cell.monster {
+    background: #4a1818 !important;
+    background-image: none !important;
+    box-shadow: 0 0 10px #c33, inset 0 0 5px #500 !important;
+  }
+  .cell.monster.sleeping {
+    background: #4a1818 !important;
+    background-image: none !important;
+    box-shadow: 0 0 6px #7a2828, inset 0 0 8px #2a0b0b !important;
+  }
+  .cell.monster.waking {
+    animation: monster-waking 0.18s infinite;
+    box-shadow: 0 0 14px #ff7a2a, inset 0 0 8px #5a1a00 !important;
+  }
   .cell.monster::before { z-index: 22; }
   .cell.player::after { z-index: 24; }
+  .state-marker {
+    position: absolute;
+    top: -8px;
+    right: -5px;
+    z-index: 32;
+    pointer-events: none;
+    font-weight: bold;
+    line-height: 1;
+  }
+  .state-marker.sleep {
+    font-size: 14px;
+    filter: drop-shadow(0 0 3px #d9e8ff);
+  }
+  .state-marker.wake {
+    color: #ffd966;
+    font-size: 22px;
+    text-shadow: 0 0 5px #f00, 0 0 10px #ff7a2a;
+    animation: marker-pop 0.35s ease-in-out infinite;
+  }
+  .cell-effect {
+    position: absolute;
+    inset: -2px;
+    z-index: 31;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    font-size: 26px;
+    font-weight: bold;
+  }
+  .cell-effect.hit {
+    color: #fff3a0;
+    text-shadow: 0 0 6px #ff3500, 0 0 13px #ff9a00;
+    animation: attack-burst 0.42s ease-out;
+  }
+  .cell-effect.holy {
+    background: radial-gradient(circle, rgba(255,244,178,0.9) 0%, rgba(255,215,78,0.45) 45%, rgba(255,255,255,0) 76%);
+    box-shadow: inset 0 0 18px rgba(255,235,125,0.95), 0 0 16px rgba(255,224,92,0.9);
+    animation: holy-flash 0.75s ease-out;
+  }
+  .cell-effect.flash {
+    background: radial-gradient(circle, rgba(160,226,255,0.72), rgba(160,226,255,0) 72%);
+    animation: holy-flash 0.55s ease-out;
+  }
+  .cell-effect.item {
+    color: #ffd966;
+    text-shadow: 0 0 8px #fff0a3, 0 0 14px #f0b13f;
+    animation: marker-pop 0.45s ease-out;
+  }
+  @keyframes holy-flash {
+    0% { opacity: 0; transform: scale(0.45); }
+    25% { opacity: 1; transform: scale(1.08); }
+    100% { opacity: 0; transform: scale(1.24); }
+  }
+  @keyframes marker-pop {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
+  }
   @keyframes purify-glow {
     0%,100% { box-shadow: 0 0 8px #4ae07a, inset 0 0 4px #6affa2; }
     50% { box-shadow: 0 0 16px #6affa2, inset 0 0 10px #88ffbb; }
@@ -830,6 +902,26 @@
     background: rgba(0,0,0,0.18);
     padding:9px;
     margin:7px 0;
+  }
+  .note-head {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:5px;
+  }
+  .note-icon {
+    width:32px;
+    height:32px;
+    flex:0 0 32px;
+    background-position:center;
+    background-size:contain;
+    background-repeat:no-repeat;
+    image-rendering:pixelated;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    filter:drop-shadow(0 0 4px rgba(0,0,0,0.65));
   }
   .note-card .name { color:#f4d27a; font-weight:bold; margin-bottom:3px; }
   .note-card.locked { color:#806040; text-align:center; letter-spacing:2px; }
@@ -1155,6 +1247,7 @@
     60% { transform: scale(1.1); opacity: 0.8; }
     100% { transform: scale(2); opacity: 0; }
   }
+
 </style>
 </head>
 <body>
@@ -1505,6 +1598,11 @@ function createMonster(type, x, y, extra = {}) {
 }
 
 function newGame(firstTime = true) {
+  if (game.gameOverTimer) {
+    clearTimeout(game.gameOverTimer);
+    game.gameOverTimer = null;
+  }
+  game.gameOverPending = false;
   if (audioState.started) updateBgmState(true);
   if (typeof game.gold !== 'number') game.gold = 0;
   if (typeof game.adventures !== 'number') game.adventures = 1;
@@ -1550,6 +1648,7 @@ function newGame(firstTime = true) {
   game.placedBomb = null;
   game.flashlitCells = new Set();
   game.attackCell = null;
+  game.cellEffects = [];
   game.aim = null;
   game.curseEyeMarks = new Set();
   game.purifyEyeMarks = new Set();
@@ -2367,6 +2466,7 @@ function render() {
       c.className = 'cell';
       c.style.removeProperty('--entity-img');
       c.removeAttribute('data-escape-arrow');
+      c.querySelectorAll('.state-marker,.cell-effect').forEach(el => el.remove());
       if (game.aim) {
         const k = keyOf(x, y);
         if (game.aim.previewKeys && game.aim.previewKeys.has(k)) c.classList.add('target-line');
@@ -2422,9 +2522,18 @@ function render() {
         c.style.setProperty('--entity-img', `url("${getMonsterSprite(m.type)}")`);
         if (m.petrified) c.classList.add('petrified');
         if (m.enragedTurns > 0) c.classList.add('enraged');
-        if (m.startled) c.classList.add('waking');
-        else if (game.turn < AWAKEN_TURN - 1) c.classList.add('sleeping');
-        else if (game.turn === AWAKEN_TURN - 1) c.classList.add('waking');
+        if (m.startled) {
+          c.classList.add('waking');
+          appendStateMarker(c, 'wake');
+        }
+        else if (game.turn < AWAKEN_TURN - 1) {
+          c.classList.add('sleeping');
+          appendStateMarker(c, 'sleep');
+        }
+        else if (game.turn === AWAKEN_TURN - 1) {
+          c.classList.add('waking');
+          appendStateMarker(c, 'wake');
+        }
       }
       if (game.cursedWells && game.cursedWells.has(`${x},${y}`)) { c.classList.add('cursed-well'); unlockNotebook('terrains', 'cursed_well'); }
       else if (game.scarabNests && game.scarabNests[`${x},${y}`] && !game.scarabNests[`${x},${y}`].exhausted) { c.classList.add('scarab-nest'); unlockNotebook('terrains', 'scarab_nest'); }
@@ -2449,6 +2558,7 @@ function render() {
       else if (game.treasures[`${x},${y}`]) {
         c.classList.add('treasure', game.treasures[`${x},${y}`].type);
       }
+      appendCellEffects(c, x, y);
     }
   }
   document.getElementById('turn').textContent = game.turn;
@@ -2480,6 +2590,36 @@ function render() {
   document.getElementById('phase').style.color = game.turn < AWAKEN_TURN ? '#a08660' : '#d44';
   renderItemGrid();
   updateBgmState();
+}
+
+function appendStateMarker(cell, type) {
+  const marker = document.createElement('div');
+  marker.className = `state-marker ${type}`;
+  marker.textContent = type === 'sleep' ? 'Zzz' : '!';
+  cell.appendChild(marker);
+}
+
+function appendCellEffects(cell, x, y) {
+  if (!Array.isArray(game.cellEffects)) return;
+  const key = keyOf(x, y);
+  game.cellEffects.filter(e => e.key === key).forEach(e => {
+    const el = document.createElement('div');
+    el.className = `cell-effect ${e.type}`;
+    el.textContent = e.text || '';
+    cell.appendChild(el);
+  });
+}
+
+function addCellEffect(x, y, type = 'hit', text = '', duration = 650) {
+  if (!inBounds(x, y)) return;
+  if (!Array.isArray(game.cellEffects)) game.cellEffects = [];
+  const id = `${Date.now()}-${Math.random()}`;
+  game.cellEffects.push({ id, key: keyOf(x, y), type, text });
+  setTimeout(() => {
+    if (!Array.isArray(game.cellEffects)) return;
+    game.cellEffects = game.cellEffects.filter(e => e.id !== id);
+    render();
+  }, duration);
 }
 
 function onCellClick(x, y) {
@@ -2545,6 +2685,7 @@ function tryMove(dx, dy) {
     game.crackedFloors.delete(oldKey);
     game.pits.add(oldKey);
     game.pendingCrackCollapse = '';
+    playSfx('crack');
     log('身后的破碎地面崩塌成了坑。', 'danger');
   }
   if (game.crackedFloors && game.crackedFloors.has(newKey)) {
@@ -2553,10 +2694,12 @@ function tryMove(dx, dy) {
   }
   if (game.cursedGrounds && game.cursedGrounds.has(newKey)) {
     increaseCurse(5);
+    playSfx('hazard');
     log('你踏入诅咒之地，诅咒值 +5。', 'danger');
   }
   if (game.quicksands && game.quicksands.has(newKey)) {
     game.hp--;
+    playSfx('hazard');
     log('你踩入流沙陷阱，砂砾撕扯着双腿，生命 -1。', 'danger');
   }
   triggerScarabNest(nx, ny);
@@ -3158,6 +3301,7 @@ function canMonsterStepTo(m, x, y) {
 function attackPlayer(m) {
   const info = MONSTER_TYPES[m.type];
   if (info.attack <= 0) return;
+  playSfx('hit');
   const damage = m.enragedTurns > 0 ? info.attack * 2 : info.attack;
   game.attackCell = `${game.player.x},${game.player.y}`;
   game.hp -= damage;
@@ -3299,6 +3443,7 @@ function isSleepingMonster(m) {
 function playerAttack(m) {
   const info = MONSTER_TYPES[m.type];
   const wasSleeping = isSleepingMonster(m);
+  playSfx('dagger');
   if (m.type === 'ghost') {
     log('匕首划过幽灵的残影，没有造成伤害。', 'danger');
     if (wasSleeping) {
@@ -3309,6 +3454,7 @@ function playerAttack(m) {
       return;
     }
     game.hp -= info.attack;
+    playSfx('hit');
     log(`${info.name}反击，生命 -${info.attack}。`, 'danger');
     render();
     if (game.hp <= 0) gameOver(`${info.name}的反击击倒了你。`);
@@ -3317,6 +3463,7 @@ function playerAttack(m) {
   }
   const damage = getDamageAmount(1);
   m.hp -= damage;
+  addCellEffect(m.x, m.y, 'hit', '✦');
   log(`你用匕首刺向${info.name}，造成 ${damage} 点伤害。`, 'danger');
   if (m.hp <= 0) {
     killMonster(m);
@@ -3334,6 +3481,7 @@ function playerAttack(m) {
     return;
   }
   game.hp -= info.attack;
+  playSfx('hit');
   log(`${info.name}反击，生命 -${info.attack}。`, 'danger');
   render();
   if (game.hp <= 0) gameOver(`${info.name}的反击击倒了你。`);
@@ -3694,6 +3842,7 @@ function damageMonster(m, amount, type, sourceText = '') {
     return true;
   }
   m.hp -= amount;
+  addCellEffect(m.x, m.y, 'hit', type === 'holy' ? '☀' : '✦');
   log(`${sourceText || '攻击'}对${info.name}造成 ${amount} 点伤害。`, 'danger');
   if (m.hp <= 0) {
     killMonster(m);
@@ -3724,6 +3873,7 @@ function confirmAim() {
       if (inBounds(x, y)) {
         game.revealed[y][x] = true;
         game.flashlitCells.add(k);
+        addCellEffect(x, y, 'flash', '', 520);
       }
     });
     log('✦ 照明棒照亮了选定方向。', 'important');
@@ -3731,6 +3881,7 @@ function confirmAim() {
     if (!game.hasGun) { log('你还没有手枪。', 'danger'); render(); return; }
     if (game.bullets <= 0) { log('没有子弹。', 'danger'); render(); return; }
     game.bullets--;
+    playSfx('gun');
     const bulletType = game.gunLevel >= 2 ? 'sacred' : 'physical';
     if (game.gunLevel >= 1 && targets.length) {
       damageMonster(targets[0], 3, bulletType, game.gunLevel >= 2 ? '圣弹' : '子弹');
@@ -3744,10 +3895,16 @@ function confirmAim() {
     if (game.hooks <= 0) { log('没有钩爪。', 'danger'); render(); return; }
     if (!landing) { log('钩爪没有找到可落脚的位置。', 'danger'); render(); return; }
     game.hooks--;
+    addCellEffect(landing.x, landing.y, 'item', '🪝', 520);
     movePlayerByHook(landing);
   } else if (itemId === 'holy') {
     if (game.holyLights <= 0) { log('没有圣光术。', 'danger'); render(); return; }
     game.holyLights--;
+    playSfx('purify');
+    impactKeys.forEach(k => {
+      const [x, y] = k.split(',').map(Number);
+      addCellEffect(x, y, 'holy', '', 760);
+    });
     let hit = 0;
     [...game.monsters].forEach(m => {
       if (impactKeys.has(keyOf(m.x, m.y))) {
@@ -3776,6 +3933,7 @@ function placeBomb() {
   if (game.placedBomb) { log('已有一颗炸弹放置中。'); return; }
   game.bombs--;
   game.placedBomb = { x: game.player.x, y: game.player.y };
+  addCellEffect(game.player.x, game.player.y, 'item', '💣', 600);
   log('💣 你放置了一颗炸弹，下回合爆炸。', 'important');
   render();
 }
@@ -3922,6 +4080,7 @@ function movePlayerByHook(p) {
     game.crackedFloors.delete(oldKey);
     game.pits.add(oldKey);
     game.pendingCrackCollapse = '';
+    playSfx('crack');
     log('身后的破碎地面崩塌成了坑。', 'danger');
   }
   const k = keyOf(p.x, p.y);
@@ -3963,6 +4122,7 @@ function triggerTrapdoor(x, y, safe) {
   const key = keyOf(x, y);
   if (!game.trapdoors || !game.trapdoors.has(key)) return false;
   game.trapdoors.delete(key);
+  playSfx(safe ? 'hook' : 'hazard');
   const target = findTrapdoorExit(x, y);
   if (!target) return false;
   game.player.x = target.x;
@@ -4076,6 +4236,7 @@ function teleportTo(p) {
   game.player.x = p.x;
   game.player.y = p.y;
   revealAround(p.x, p.y, 1);
+  addCellEffect(p.x, p.y, 'item', '✦', 650);
   collectTileAt(p.x, p.y);
   render();
   promptEscapeAtStart();
@@ -4165,7 +4326,7 @@ function getShopGoods() {
   const all = getAllShopGoods();
   const available = all.filter(g => {
     if (g.id === 'dagger' && game.hasDagger) return false;
-    if (g.id === 'gun' && game.hasGun) return false;
+    if (g.id === 'gun' && (game.hasGun || !game.hasDagger)) return false;
     if (g.id === 'bullet' && !game.hasGun) return false;
     if (g.id === 'backpack1' && game.backpackLevel !== 0) return false;
     if (g.id === 'backpack2' && (game.backpackLevel !== 1 || game.adventures < 5)) return false;
@@ -4181,7 +4342,13 @@ function getShopGoods() {
     if (g.id === 'purifyeye3' && (game.purifyEyeLevel !== 2 || game.adventures < 5)) return false;
     return true;
   });
-  return available.sort(() => Math.random() - 0.5).slice(0, game.hasMerchantGuild ? 6 : 3);
+  const limit = game.hasMerchantGuild ? 6 : 3;
+  if (!game.hasDagger) {
+    const dagger = available.find(g => g.id === 'dagger');
+    const others = available.filter(g => g.id !== 'dagger').sort(() => Math.random() - 0.5).slice(0, limit - 1);
+    return dagger ? [dagger, ...others] : others;
+  }
+  return available.sort(() => Math.random() - 0.5).slice(0, limit);
 }
 
 function renderShopItem(g) {
@@ -4213,7 +4380,7 @@ function refreshCurrentShopGoods() {
     .filter(g => {
       if (g.soldOut) return true;
       if (g.id === 'dagger' && game.hasDagger) return false;
-      if (g.id === 'gun' && game.hasGun) return false;
+      if (g.id === 'gun' && (game.hasGun || !game.hasDagger)) return false;
       if (g.id === 'merchant' && game.hasMerchantGuild) return false;
       if (g.id === 'pharaohSeal' && game.hasPharaohSeal) return false;
       if (g.id === 'backpack1' && game.backpackLevel !== 0) return false;
@@ -4390,6 +4557,16 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+function renderDeathReason(reason) {
+  const lines = String(reason)
+    .replace(/……/g, '……\n')
+    .replace(/([。！？!？])(?=\S)/g, '$1\n')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+  return `<div style="text-align:center;line-height:1.9;margin:10px 0;color:#d8c3a0">${lines.map(escapeHtml).join('<br>')}</div>`;
+}
+
 function renderLeaderboard(currentId = '') {
   const board = getLeaderboard().sort((a, b) => b.score - a.score || b.createdAt - a.createdAt).slice(0, 10);
   const rows = board.length ? board.map((r, i) => {
@@ -4458,7 +4635,7 @@ function showGameOverSummary(summary, currentId = '') {
   const rankLine = currentId ? '<p style="color:#58d9ff">你的名字已被刻入亡者之碑。</p>' : '';
   showModal(`
     <h2 style="color:#d44">☠ 探 险 失 败 ☠</h2>
-    <p>${escapeHtml(summary.reason)}</p>
+    ${renderDeathReason(summary.reason)}
     <p>本次探险金币：<span style="color:#ffd966;font-weight:bold">${summary.score}</span></p>
     ${relicLine}
     ${rankLine}
@@ -4473,7 +4650,7 @@ function showLeaderboardEntry(summary) {
   game.pendingLeaderboardSummary = summary;
   showModal(`
     <h2 style="color:#f4d27a">碑 文 将 成</h2>
-    <p>${escapeHtml(summary.reason)}</p>
+    ${renderDeathReason(summary.reason)}
     <p>你本次带着 <span style="color:#ffd966;font-weight:bold">${summary.score}</span> 金币倒在古墓深处，已超过亡者之碑的门槛。</p>
     <input class="leader-input" id="leader-name-input" maxlength="18" placeholder="输入你的名字">
     <p style="font-size:12px;color:#a08660">若不输入名字，将默认使用“寻宝猎人 + 当前时间戳”。</p>
@@ -4543,35 +4720,66 @@ function renderNotebookTab(tab) {
   const data = getNotebook();
   if (tab === 'terrains') {
     return NOTEBOOK_TERRAINS.map(t => data.terrains.includes(t.id)
-      ? `<div class="note-card"><div class="name">${t.name}</div><div>${t.desc}</div></div>`
+      ? `<div class="note-card"><div class="note-head">${renderNotebookIcon(getTerrainNotebookSprite(t.id), getTerrainNotebookFallback(t.id))}<div class="name">${t.name}</div></div><div>${t.desc}</div></div>`
       : `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`).join('');
   }
   if (tab === 'relics') {
     return RELIC_DEFS.map(r => data.relics.includes(r.id) || hasRelic(r.id)
-      ? `<div class="note-card"><div class="name">${r.icon} ${r.name}</div><div>${r.desc}</div></div>`
+      ? `<div class="note-card"><div class="note-head">${renderNotebookIcon('', r.icon)}<div class="name">${r.name}</div></div><div>${r.desc}</div></div>`
       : `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`).join('');
   }
   return NOTEBOOK_MONSTERS.map(m => {
     if (!data.monsters.includes(m.id)) return `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`;
     const killed = data.monsterKills.includes(m.id);
-    return `<div class="note-card"><div class="name">${m.name}</div><div>${m.desc}</div><div style="margin-top:6px;color:${killed ? '#b6ffca' : '#f4d27a'}">${killed ? `击杀方法：${m.kill}` : `线索：${m.hint}`}</div></div>`;
+    return `<div class="note-card"><div class="note-head">${renderNotebookIcon(getMonsterSprite(m.id))}<div class="name">${m.name}</div></div><div>${m.desc}</div><div style="margin-top:6px;color:${killed ? '#b6ffca' : '#f4d27a'}">${killed ? `击杀方法：${m.kill}` : `线索：${m.hint}`}</div></div>`;
   }).join('');
+}
+
+function renderNotebookIcon(src, fallback = '') {
+  if (src) return `<div class="note-icon" style="background-image:url('${src}')"></div>`;
+  return `<div class="note-icon">${escapeHtml(fallback)}</div>`;
+}
+
+function getTerrainNotebookSprite(id) {
+  const map = {
+    exit: 'terrain_exit.png',
+    pit: 'terrain_pit.png',
+    well: 'terrain_well.png',
+    cracked: 'terrain_cracked.png',
+    quicksand: 'terrain_quicksand.png',
+    cursed_ground: 'terrain_cursed_ground.png',
+    cursed_well: 'terrain_cursed_well.png',
+    scarab_nest: 'terrain_scarab_nest.png',
+    trapdoor: 'terrain_trapdoor.png',
+    jackal_lair: 'terrain_jackal_lair.png',
+  };
+  return map[id] ? `assets/sprites/${map[id]}` : '';
+}
+
+function getTerrainNotebookFallback(id) {
+  return id === 'wall' ? '▣' : '';
 }
 
 function gameOver(reason) {
   if (game.over) return;
   game.over = true;
-  stopBgm();
+  game.gameOverPending = true;
   const summary = {
     reason,
     score: game.adventureGold,
     relics: game.relicsCollected,
     adventures: game.adventures
   };
-  const shouldRecord = qualifiesForLeaderboard(summary.score);
-  resetProgressAfterDeath();
-  if (shouldRecord) showLeaderboardEntry(summary);
-  else showGameOverSummary(summary);
+  render();
+  game.gameOverTimer = setTimeout(() => {
+    game.gameOverTimer = null;
+    game.gameOverPending = false;
+    stopBgm();
+    const shouldRecord = qualifiesForLeaderboard(summary.score);
+    resetProgressAfterDeath();
+    if (shouldRecord) showLeaderboardEntry(summary);
+    else showGameOverSummary(summary);
+  }, 2000);
 }
 
 function showModal(html) {
