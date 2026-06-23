@@ -1,0 +1,4765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>绝命寻宝：法老的诅咒</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(ellipse at center, #2a1810 0%, #0d0604 100%);
+    color: #e8d4a0;
+    font-family: "Georgia", "Times New Roman", serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+    overflow: hidden;
+  }
+  #game-wrapper {
+    display: grid;
+    grid-template-columns: 220px auto 220px;
+    gap: 18px;
+    align-items: start;
+  }
+  .panel {
+    background: linear-gradient(180deg, rgba(58,37,21,0.94) 0%, rgba(37,18,8,0.96) 100%), url("assets/ui/panel_bg.png") center / 96px 96px repeat;
+    border: 2px solid #8b6a3a;
+    border-radius: 6px;
+    padding: 14px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6), inset 0 0 8px rgba(139,106,58,0.3);
+  }
+  h1 {
+    font-size: 22px;
+    text-align: center;
+    color: #f4d27a;
+    text-shadow: 0 0 10px #8b4513, 2px 2px 0 #1a0a04;
+    letter-spacing: 4px;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  .subtitle {
+    font-size: 10px;
+    text-align: center;
+    color: #a08660;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  .stat-label { color: #a08660; }
+  .stat-value { color: #f4d27a; font-weight: bold; }
+  .hp-hearts { color: #d44; font-size: 16px; letter-spacing: 2px; }
+  .hp-hearts.hp-low {
+    color: #ff1f1f;
+    text-shadow: 0 0 8px #9b0000, 0 0 14px #ff2222;
+    animation: hp-shake 0.28s infinite;
+  }
+  #board-container {
+    position: relative;
+  }
+  #board-container::before,
+  #board-container::after {
+    pointer-events: none;
+  }
+  #board-container::before {
+    content: "";
+    position: absolute;
+    inset: -10px;
+    z-index: 4;
+    border-radius: 10px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  #board-container.curse-warning::before {
+    opacity: 1;
+    background:
+      linear-gradient(90deg, rgba(126, 35, 180, 0.42), rgba(126, 35, 180, 0.12) 8%, transparent 18%, transparent 82%, rgba(126, 35, 180, 0.12) 92%, rgba(126, 35, 180, 0.42)),
+      linear-gradient(0deg, rgba(126, 35, 180, 0.42), rgba(126, 35, 180, 0.12) 8%, transparent 18%, transparent 82%, rgba(126, 35, 180, 0.12) 92%, rgba(126, 35, 180, 0.42));
+    box-shadow: 0 0 22px rgba(154, 70, 255, 0.55), inset 0 0 28px rgba(126, 35, 180, 0.35);
+    animation: curse-edge-pulse 2.1s ease-in-out infinite;
+  }
+  #board-container.curse-critical::before {
+    opacity: 1;
+    background:
+      linear-gradient(90deg, rgba(72, 0, 125, 0.75), rgba(128, 0, 180, 0.32) 14%, transparent 28%, transparent 72%, rgba(128, 0, 180, 0.32) 86%, rgba(72, 0, 125, 0.75)),
+      linear-gradient(0deg, rgba(72, 0, 125, 0.75), rgba(128, 0, 180, 0.32) 14%, transparent 28%, transparent 72%, rgba(128, 0, 180, 0.32) 86%, rgba(72, 0, 125, 0.75));
+    box-shadow: 0 0 34px rgba(130, 0, 255, 0.95), inset 0 0 42px rgba(105, 0, 160, 0.62);
+    animation: curse-edge-pulse-heavy 1.45s ease-in-out infinite;
+  }
+  #board-container.purify-flash::after {
+    content: "☥";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 8;
+    color: #82ffad;
+    font-size: 62px;
+    text-shadow: 0 0 12px #35ff7c, 0 0 28px #9cffc0;
+    animation: purify-ankh-rise 0.9s ease-out forwards;
+  }
+  .purify-reduce-float {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 9;
+    transform: translate(-50%, 28px);
+    color: #b6ffca;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px #35ff7c, 0 0 24px #9cffc0, 1px 1px 0 #0b2b16;
+    pointer-events: none;
+    animation: purify-reduce-rise 0.95s ease-out forwards;
+  }
+  .center-float {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 30;
+    transform: translate(-50%, 8px);
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    pointer-events: none;
+    animation: purify-reduce-rise 0.95s ease-out forwards;
+  }
+  .center-float.gold {
+    color: #ffd966;
+    text-shadow: 0 0 10px #ffd966, 0 0 24px #8a4a00, 1px 1px 0 #2a1300;
+  }
+  .center-float.item {
+    color: #8ee8ff;
+    text-shadow: 0 0 10px #58d9ff, 0 0 24px #0c4a66, 1px 1px 0 #021923;
+  }
+  .center-float.curse {
+    color: #ff5a9e;
+    text-shadow: 0 0 10px #ff2a7a, 0 0 24px #7f1dff, 1px 1px 0 #260018;
+  }
+  .center-float.recover {
+    color: #79ff9d;
+    text-shadow: 0 0 10px #35ff7c, 0 0 24px #9cffc0, 1px 1px 0 #0b2b16;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(12, 42px);
+    grid-template-rows: repeat(12, 42px);
+    gap: 2px;
+    background: #1a0a04;
+    padding: 6px;
+    border: 3px solid #8b6a3a;
+    border-radius: 4px;
+    box-shadow: 0 0 30px rgba(139,69,19,0.4);
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+  }
+  #board.low-hp {
+    border-color: #8f1212;
+    box-shadow: 0 0 34px rgba(170, 0, 0, 0.72), inset 0 0 24px rgba(105, 0, 0, 0.4);
+  }
+  #board-container.purify-flash #board {
+    border-color: #71ff9a;
+    box-shadow: 0 0 34px rgba(65, 255, 130, 0.95), inset 0 0 22px rgba(90, 255, 150, 0.38);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cell {
+    width: 42px;
+    height: 42px;
+    background: #0a0402 url("assets/floor_tile.png") center / cover no-repeat;
+    border-radius: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    position: relative;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .cell.fog {
+    background: #0a0402;
+    background-image: radial-gradient(circle, #1a0a04 30%, #0a0402 70%);
+  }
+  .cell.fog.monster-hint::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 42, 42, 0.72);
+    box-shadow: 0 0 12px rgba(255, 42, 42, 0.95), 0 0 22px rgba(255, 42, 42, 0.45);
+    animation: pulse 1.8s infinite;
+  }
+  .cell.fog.purify-hint::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(88, 255, 135, 0.72);
+    box-shadow: 0 0 12px rgba(88, 255, 135, 0.95), 0 0 22px rgba(88, 255, 135, 0.45);
+    animation: pulse 1.8s infinite;
+  }
+  .cell.revealed {
+    background: #4a3220 url("assets/floor_tile.png") center / cover no-repeat;
+  }
+  .cell.pit {
+    background: #17100c !important;
+    box-shadow: inset 0 0 12px #000;
+  }
+  .cell.pit::before,
+  .cell.pit::after {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 4px;
+    background: #7b2c1f;
+    border-radius: 2px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  }
+  .cell.pit::before { transform: rotate(45deg); }
+  .cell.pit::after { transform: rotate(-45deg); }
+  .cell.cracked {
+    background: linear-gradient(135deg, #5b4a36 0%, #2c2118 100%) !important;
+    box-shadow: inset 0 0 8px rgba(255, 210, 128, 0.25);
+  }
+  .cell.cracked::before {
+    content: "╱╲";
+    color: #d6a84f;
+    font-size: 18px;
+    letter-spacing: -3px;
+    transform: rotate(-12deg);
+  }
+  .cell.wall-n { border-top: 4px solid #c0a070; }
+  .cell.wall-e { border-right: 4px solid #c0a070; }
+  .cell.wall-s { border-bottom: 4px solid #c0a070; }
+  .cell.wall-w { border-left: 4px solid #c0a070; }
+  .cell.start {
+    background: #6b4a26 !important;
+    box-shadow: inset 0 0 6px #f4d27a;
+  }
+  .cell.escape-target {
+    background: radial-gradient(circle, #145f96 0%, #143856 60%, #6b4a26 100%) !important;
+    box-shadow: 0 0 18px #58d9ff, 0 0 32px rgba(88,217,255,0.9), inset 0 0 10px #c8f6ff !important;
+    animation: escape-blue-pulse 0.75s ease-in-out infinite;
+  }
+  .cell.escape-arrow::before {
+    content: attr(data-escape-arrow);
+    position: absolute;
+    z-index: 16;
+    color: #58d9ff;
+    font-size: 32px;
+    font-weight: bold;
+    text-shadow: 0 0 8px #58d9ff, 0 0 16px #d8fbff, 1px 1px 0 #022438;
+    animation: escape-arrow-pulse 0.65s ease-in-out infinite;
+  }
+  @keyframes escape-blue-pulse {
+    0%,100% { filter: brightness(1); transform: scale(1); }
+    50% { filter: brightness(1.8); transform: scale(1.05); }
+  }
+  @keyframes escape-arrow-pulse {
+    0%,100% { opacity: 0.65; transform: translateY(0) scale(0.92); }
+    50% { opacity: 1; transform: translateY(-2px) scale(1.12); }
+  }
+  .cell.player::after {
+    content: "";
+    width: 34px;
+    height: 34px;
+    background: url("assets/player.png") center / contain no-repeat;
+    filter: drop-shadow(0 0 4px #f4d27a);
+    z-index: 10;
+  }
+  .cell.treasure::before { font-size: 20px; }
+  .cell.coin::before { content: "🪙"; }
+  .cell.bag::before { content: "💰"; }
+  .cell.diamond::before { content: "💎"; filter: drop-shadow(0 0 5px #8ee8ff); }
+  .cell.relic {
+    background: radial-gradient(circle, #8f1d13 0%, #2b0905 72%) !important;
+    box-shadow: 0 0 14px #ffd76a, inset 0 0 10px rgba(120,0,0,0.85);
+  }
+  .cell.relic::before {
+    content: attr(data-relic-icon);
+    font-size: 23px;
+    filter: drop-shadow(0 0 7px gold) drop-shadow(0 0 10px #8b0000);
+    animation: pulse 1.2s infinite;
+  }
+  .cell.memory-hint::after {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.82);
+    box-shadow: 0 0 10px #fff, 0 0 18px #ffeeb2;
+    z-index: 4;
+  }
+  .cell.cursed-ground {
+    box-shadow: inset 0 0 12px #8a00b6, 0 0 8px rgba(160,0,220,0.65);
+  }
+  .cell.cursed-ground::after {
+    content: "✦";
+    position: absolute;
+    color: #b42cff;
+    font-size: 16px;
+    opacity: 0.8;
+  }
+  .cell.quicksand {
+    background: radial-gradient(circle, #7b5a24 0%, #31200c 78%) !important;
+    box-shadow: inset 0 0 13px #c69737;
+  }
+  .cell.quicksand::before {
+    content: "≋";
+    color: #e2bd68;
+    font-size: 22px;
+    filter: drop-shadow(0 0 4px #000);
+  }
+  .cell.cursed-well {
+    background: radial-gradient(circle, #3b0050 0%, #09020c 76%) !important;
+    box-shadow: inset 0 0 14px #000, 0 0 13px rgba(190, 50, 255, 0.8);
+  }
+  .cell.cursed-well::before {
+    content: "♆";
+    color: #d36cff;
+    font-size: 23px;
+    filter: drop-shadow(0 0 7px #b42cff);
+  }
+  .cell.scarab-nest {
+    background: radial-gradient(circle, #090604 0%, #28170d 70%) !important;
+    box-shadow: inset 0 0 14px #000, 0 0 8px rgba(118,82,40,0.8);
+  }
+  .cell.scarab-nest::before {
+    content: "◉";
+    color: #1a0f08;
+    font-size: 25px;
+    text-shadow: 0 0 5px #d6a84f;
+  }
+  .cell.scarab-nest::after {
+    content: "⌁";
+    color: #8f7040;
+    font-size: 18px;
+    transform: translate(10px, 8px);
+  }
+  .cell.trapdoor {
+    background: #342719 !important;
+    box-shadow: inset 0 0 8px rgba(180,170,145,0.35);
+  }
+  .cell.trapdoor::before {
+    content: "▢";
+    color: rgba(185,175,150,0.45);
+    font-size: 22px;
+  }
+  .cell.jackal-lair {
+    background: radial-gradient(circle, #44220b 0%, #160b04 78%) !important;
+    box-shadow: inset 0 0 13px #000, 0 0 9px rgba(190,110,35,0.8);
+  }
+  .cell.jackal-lair::before {
+    content: "⌂";
+    color: #d68b3a;
+    font-size: 23px;
+    filter: drop-shadow(0 0 5px #000);
+  }
+  .cell.bomb::before { content: "💣"; font-size: 20px; }
+  .cell.well {
+    background: linear-gradient(135deg, #28425a 0%, #102238 100%) !important;
+    box-shadow: 0 0 10px #5ab8ff, inset 0 0 8px #082033;
+  }
+  .cell.well::before {
+    content: "♒";
+    color: #8ed7ff;
+    font-size: 24px;
+    font-weight: bold;
+    filter: drop-shadow(0 0 5px #8ed7ff);
+  }
+  .cell.monster {
+    background: #4a1818 !important;
+    box-shadow: 0 0 8px #c33, inset 0 0 4px #500;
+  }
+  .cell.monster::before { font-size: 22px; animation: shake 0.6s infinite; }
+  .cell.monster.sleeping {
+    background: #4a3220 url("assets/floor_tile.png") center / cover no-repeat !important;
+    opacity: 1;
+    box-shadow: inset 0 0 8px #222;
+  }
+  .cell.monster.sleeping::before {
+    opacity: 0.86;
+    filter: grayscale(0.35) brightness(0.95);
+    animation: none;
+  }
+  .cell.monster.sleeping::after {
+    content: "💤";
+    position: absolute;
+    top: -7px;
+    right: -5px;
+    font-size: 14px;
+    z-index: 18;
+    filter: drop-shadow(0 0 3px #d9e8ff);
+  }
+  .cell.monster.waking {
+    animation: monster-waking 0.18s infinite;
+    box-shadow: 0 0 14px #ff7a2a, inset 0 0 8px #5a1a00;
+  }
+  .cell.monster.waking::after {
+    content: "!";
+    position: absolute;
+    top: -6px;
+    right: 2px;
+    color: #ffd966;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 18;
+    text-shadow: 0 0 5px #f00;
+  }
+  .cell.mummy::before { content: "🧟"; }
+  .cell.bat::before { content: "🦇"; }
+  .cell.ghost::before { content: "👻"; filter: drop-shadow(0 0 5px #d9e8ff); }
+  .cell.scarab-monster::before { content: "🪲"; }
+  .cell.scorpion::before { content: "🦂"; }
+  .cell.priest::before { content: "☥"; color: #d9ccff; text-shadow: 0 0 8px #9b6bff; }
+  .cell.gargoyle::before { content: "🗿"; }
+  .cell.jackal::before { content: "🐺"; }
+  .cell.giant-scarab::before { content: "🪲"; font-size: 28px; filter: drop-shadow(0 0 8px #d6a84f) drop-shadow(0 0 8px #8b0000); }
+  .cell.petrified { filter: grayscale(1) brightness(0.75); opacity: 0.85; }
+  .cell.enraged { animation: curse-text-warp 0.7s ease-in-out infinite; }
+  .cell.attacked::after {
+    content: "💥";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    animation: attack-burst 0.45s ease-out;
+    z-index: 20;
+  }
+  .cell.elite {
+    background: #4a0000 !important;
+    box-shadow: 0 0 12px #f00, inset 0 0 6px #800;
+  }
+  .cell.elite::before { content: "🐍"; font-size: 24px; filter: drop-shadow(0 0 4px red); animation: shake 0.4s infinite; }
+  .cell.flashlit {
+    background: linear-gradient(135deg, #8a6a3e 0%, #6a4828 100%) !important;
+    box-shadow: inset 0 0 8px #ffd966;
+  }
+  .cell.target-line {
+    outline: 2px solid #72d7ff;
+    box-shadow: inset 0 0 10px rgba(114, 215, 255, 0.8), 0 0 8px rgba(114, 215, 255, 0.7);
+  }
+  .cell.target-impact {
+    outline: 2px solid #ffd966;
+    box-shadow: inset 0 0 12px rgba(255, 217, 102, 0.95), 0 0 12px rgba(255, 217, 102, 0.8);
+  }
+  .cell.target-invalid {
+    outline: 2px solid #d44;
+    box-shadow: inset 0 0 10px rgba(220, 68, 68, 0.8);
+  }
+  .cell.purify {
+    background: linear-gradient(135deg, #2a6a3e 0%, #15402a 100%) !important;
+    box-shadow: 0 0 10px #4ae07a, inset 0 0 6px #6affa2;
+    animation: purify-glow 1.6s ease-in-out infinite;
+  }
+  .cell.purify::before {
+    font-size: 22px;
+    filter: drop-shadow(0 0 4px #6affa2);
+  }
+  .cell.purify.scarab::before { content: "🪲"; }
+  .cell.purify.water::before { content: "💧"; }
+  .cell.purify.eye::before { content: "👁️"; }
+  .cell.purify.altar::before { content: "✨"; }
+  .cell.coin::before,
+  .cell.bag::before,
+  .cell.diamond::before,
+  .cell.start::before,
+  .cell.relic::before,
+  .cell.pit::before,
+  .cell.cracked::before,
+  .cell.well::before,
+  .cell.cursed-well::before,
+  .cell.cursed-ground::before,
+  .cell.quicksand::before,
+  .cell.scarab-nest::before,
+  .cell.trapdoor::before,
+  .cell.jackal-lair::before,
+  .cell.bomb::before,
+  .cell.purify::before,
+  .cell.monster::before {
+    content: "" !important;
+    display: block;
+    width: 32px;
+    height: 32px;
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.65));
+  }
+  .cell.player::after {
+    background-image: url("assets/sprites/explorer.png");
+    image-rendering: pixelated;
+  }
+  .cell.coin::before { background-image: url("assets/sprites/treasure_coin.png"); }
+  .cell.bag::before { background-image: url("assets/sprites/treasure_bag.png"); }
+  .cell.diamond::before { background-image: url("assets/sprites/treasure_diamond.png"); }
+  .cell.start::before { background-image: url("assets/sprites/terrain_exit.png"); }
+  .cell.relic::before { background-image: url("assets/sprites/relic_generic.png"); }
+  .cell.pit::before { background-image: url("assets/sprites/terrain_pit.png"); }
+  .cell.pit::after { display: none; }
+  .cell.cracked::before { background-image: url("assets/sprites/terrain_cracked.png"); transform: none; }
+  .cell.well::before { background-image: url("assets/sprites/terrain_well.png"); }
+  .cell.cursed-well::before { background-image: url("assets/sprites/terrain_cursed_well.png"); }
+  .cell.cursed-ground::before { background-image: url("assets/sprites/terrain_cursed_ground.png"); }
+  .cell.cursed-ground::after { display: none; }
+  .cell.quicksand::before { background-image: url("assets/sprites/terrain_quicksand.png"); }
+  .cell.scarab-nest::before { background-image: url("assets/sprites/terrain_scarab_nest.png"); }
+  .cell.scarab-nest::after { display: none; }
+  .cell.trapdoor::before { background-image: url("assets/sprites/terrain_trapdoor.png"); }
+  .cell.jackal-lair::before { background-image: url("assets/sprites/terrain_jackal_lair.png"); }
+  .cell.bomb::before { background-image: url("assets/sprites/item_bomb.png"); }
+  .cell.purify.scarab::before { background-image: url("assets/sprites/purify_scarab.png"); }
+  .cell.purify.water::before { background-image: url("assets/sprites/purify_water.png"); }
+  .cell.purify.eye::before { background-image: url("assets/sprites/purify_eye.png"); }
+  .cell.purify.altar::before { background-image: url("assets/sprites/purify_altar.png"); }
+  .cell.bat::before { background-image: url("assets/sprites/monster_bat.png"); }
+  .cell.mummy::before { background-image: url("assets/sprites/monster_mummy.png"); }
+  .cell.ghost::before { background-image: url("assets/sprites/monster_ghost.png"); }
+  .cell.scarab-monster::before { background-image: url("assets/sprites/monster_scarab.png"); }
+  .cell.priest::before { background-image: url("assets/sprites/monster_priest.png"); }
+  .cell.scorpion::before,
+  .cell.gargoyle::before,
+  .cell.jackal::before,
+  .cell.giant-scarab::before {
+    position: absolute;
+    left: 50%;
+    bottom: -2px;
+    width: 64px;
+    height: 64px;
+    transform: translateX(-50%);
+    z-index: 19;
+    background-size: contain;
+  }
+  .cell.scorpion::before { background-image: url("assets/sprites/monster_scorpion.png"); }
+  .cell.gargoyle::before { background-image: url("assets/sprites/monster_gargoyle.png"); }
+  .cell.jackal::before { background-image: url("assets/sprites/monster_jackal.png"); }
+  .cell.giant-scarab::before { background-image: url("assets/sprites/monster_giant_scarab.png"); }
+  .cell.cursed-well,
+  .cell.scarab-nest,
+  .cell.trapdoor,
+  .cell.jackal-lair,
+  .cell.cursed-ground,
+  .cell.quicksand,
+  .cell.pit,
+  .cell.cracked,
+  .cell.well {
+    background-position: center !important;
+    background-size: 32px 32px !important;
+    background-repeat: no-repeat !important;
+  }
+  .cell.cursed-well { background-image: url("assets/sprites/terrain_cursed_well.png") !important; }
+  .cell.scarab-nest { background-image: url("assets/sprites/terrain_scarab_nest.png") !important; }
+  .cell.trapdoor { background-image: url("assets/sprites/terrain_trapdoor.png") !important; }
+  .cell.jackal-lair { background-image: url("assets/sprites/terrain_jackal_lair.png") !important; }
+  .cell.cursed-ground { background-image: url("assets/sprites/terrain_cursed_ground.png") !important; }
+  .cell.quicksand { background-image: url("assets/sprites/terrain_quicksand.png") !important; }
+  .cell.pit { background-image: url("assets/sprites/terrain_pit.png") !important; background-color:#000 !important; }
+  .cell.cracked { background-image: url("assets/sprites/terrain_cracked.png") !important; }
+  .cell.well { background-image: url("assets/sprites/terrain_well.png") !important; }
+  .cell.monster.has-entity-img::before {
+    background-image: none !important;
+    display: none !important;
+  }
+  .cell.monster.has-entity-img::after {
+    content: "" !important;
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 32px;
+    height: 32px;
+    transform: translateX(-50%);
+    z-index: 26;
+    background-image: var(--entity-img);
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    pointer-events: none;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.75));
+  }
+  .cell.monster.entity-medium::after {
+    width: 64px;
+    height: 64px;
+    bottom: -2px;
+  }
+  .cell.monster::before { z-index: 22; }
+  .cell.player::after { z-index: 24; }
+  @keyframes purify-glow {
+    0%,100% { box-shadow: 0 0 8px #4ae07a, inset 0 0 4px #6affa2; }
+    50% { box-shadow: 0 0 16px #6affa2, inset 0 0 10px #88ffbb; }
+  }
+  .curse-bar-outer {
+    width: 100%;
+    height: 10px;
+    background: #1a0a04;
+    border: 1px solid #6b4a26;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 4px 0 8px;
+  }
+  .curse-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #5a1a8a 0%, #b22aff 60%, #ff2a55 100%);
+    transition: width 0.25s ease;
+    box-shadow: inset 0 0 6px rgba(255,80,180,0.7);
+  }
+  .curse-warning {
+    animation: curse-text-breathe 1.4s ease-in-out infinite;
+  }
+  .curse-critical {
+    animation: curse-text-warp 0.75s ease-in-out infinite;
+  }
+  .curse-bar-outer.curse-warning {
+    border-color: #c77cff;
+    box-shadow: 0 0 10px rgba(185, 90, 255, 0.85);
+  }
+  .curse-bar-outer.curse-critical {
+    border-color: #ef63ff;
+    box-shadow: 0 0 16px rgba(230, 65, 255, 1), 0 0 26px rgba(120, 0, 180, 0.7);
+  }
+  .curse-bar-outer.purify-flash {
+    border-color: #7cff9e;
+    box-shadow: 0 0 18px rgba(65, 255, 130, 1), 0 0 30px rgba(100, 255, 160, 0.65);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  @keyframes curse-edge-pulse {
+    0%,100% { opacity: 0.72; filter: saturate(1); }
+    50% { opacity: 1; filter: saturate(1.35); }
+  }
+  @keyframes curse-edge-pulse-heavy {
+    0%,100% { opacity: 0.86; filter: saturate(1.2) contrast(1.05); }
+    50% { opacity: 1; filter: saturate(1.75) contrast(1.2); }
+  }
+  @keyframes curse-text-breathe {
+    0%,100% { filter: brightness(1.05); text-shadow: 0 0 6px rgba(210,80,255,0.7); }
+    50% { filter: brightness(1.55) saturate(1.45); text-shadow: 0 0 12px rgba(235,120,255,1), 0 0 20px rgba(150,0,220,0.85); }
+  }
+  @keyframes curse-text-warp {
+    0%,100% { filter: brightness(1.25) saturate(1.6); transform: skewX(0deg); text-shadow: 0 0 10px #ed76ff, 0 0 22px #7e00c9; }
+    35% { filter: brightness(1.7) saturate(2); transform: skewX(-1.6deg); text-shadow: 0 0 16px #ff8dff, 0 0 30px #8f00ff; }
+    70% { filter: brightness(1.5) saturate(1.9); transform: skewX(1.6deg); text-shadow: 0 0 14px #ff70ff, 0 0 28px #6500ad; }
+  }
+  @keyframes hp-shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-1px); }
+    50% { transform: translateX(1px); }
+    75% { transform: translateX(-1px); }
+  }
+  @keyframes purify-ankh-rise {
+    0% { opacity: 0; transform: translate(-50%, -30%) scale(0.45); }
+    25% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -130%) scale(1.25); }
+  }
+  @keyframes purify-reduce-rise {
+    0% { opacity: 0; transform: translate(-50%, 34px) scale(0.85); }
+    25% { opacity: 1; transform: translate(-50%, 22px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -46px) scale(1.08); }
+  }
+  .story-text {
+    text-align: left;
+    font-size: 13px;
+    color: #d8b878;
+    line-height: 1.85;
+    margin: 14px 0;
+    padding: 12px;
+    border-left: 3px solid #c0a070;
+    background: rgba(0,0,0,0.35);
+    font-style: italic;
+  }
+  .escape-summary {
+    text-align: left;
+    color: #c0a070;
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 12px 0;
+    padding: 10px;
+    border: 1px dashed #8b6a3a;
+    border-radius: 3px;
+  }
+  .escape-summary span { color: #ffd966; font-weight: bold; }
+  .modal .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+  .modal .btn-row .btn { flex: 1; }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-1px); }
+    75% { transform: translateX(1px); }
+  }
+  @keyframes monster-waking {
+    0%,100% { transform: translate(0, 0); }
+    25% { transform: translate(-2px, 1px); }
+    50% { transform: translate(2px, -1px); }
+    75% { transform: translate(-1px, -2px); }
+  }
+  @keyframes attack-burst {
+    0% { transform: scale(0.4); opacity: 0; }
+    35% { transform: scale(1.25); opacity: 1; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .item-slot {
+    aspect-ratio: 1;
+    background: rgba(0,0,0,0.35);
+    border: 2px solid #6b4a26;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+    padding: 2px;
+  }
+  .item-slot:hover {
+    border-color: #c0a070;
+    background: rgba(192,160,112,0.12);
+  }
+  .item-slot.selected {
+    border-color: #ffd966;
+    box-shadow: 0 0 8px rgba(255,215,102,0.5), inset 0 0 6px rgba(255,215,102,0.2);
+  }
+  .item-slot .slot-num {
+    position: absolute;
+    top: 1px;
+    left: 3px;
+    font-size: 9px;
+    color: #806040;
+    font-family: monospace;
+  }
+  .item-slot .slot-icon {
+    width: 24px;
+    height: 24px;
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    font-size: 0;
+    line-height: 1;
+    margin-bottom: 1px;
+  }
+  .item-slot .slot-name {
+    font-size: 8px;
+    color: #a08660;
+    text-align: center;
+    line-height: 1.1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-slot .slot-count {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 10px;
+    color: #ffd966;
+    font-weight: bold;
+    font-family: monospace;
+  }
+  .item-slot.empty {
+    border-color: #3a2515;
+    background: rgba(0,0,0,0.15);
+    cursor: default;
+  }
+  .item-slot.empty:hover {
+    border-color: #3a2515;
+    background: rgba(0,0,0,0.15);
+  }
+  .bag-status {
+    font-size: 10px;
+    color: #a08660;
+    text-align: center;
+    margin-top: -1px;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+  .log {
+    height: 240px;
+    max-height: 240px;
+    overflow-y: auto;
+    font-size: 11px;
+    color: #c0a070;
+    padding-right: 4px;
+    line-height: 1.5;
+  }
+  .log::-webkit-scrollbar { width: 5px; }
+  .log::-webkit-scrollbar-thumb { background: #6b4a26; }
+  .log p { padding: 2px 0; border-bottom: 1px dotted #3a2515; }
+  .log .important { color: #f4d27a; font-weight: bold; }
+  .log .danger { color: #d44; }
+  .log .gold { color: #ffd966; }
+  .permanent-list {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px dashed #6b4a26;
+    background: rgba(0,0,0,0.16);
+    font-size: 11px;
+    color: #c7aa78;
+    min-height: 34px;
+  }
+  .permanent-list span {
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    padding: 2px 6px;
+    border: 1px solid #6b4a26;
+    background: rgba(244,210,122,0.08);
+    color: #f4d27a;
+  }
+  .note-tabs { display:flex; gap:6px; margin:8px 0 10px; }
+  .note-tabs button { flex:1; font-size:12px; padding:7px 4px; }
+  .note-section { max-height:58vh; overflow:auto; padding-right:4px; }
+  .note-card {
+    border:1px solid #6b4a26;
+    background: rgba(0,0,0,0.18);
+    padding:9px;
+    margin:7px 0;
+  }
+  .note-card .name { color:#f4d27a; font-weight:bold; margin-bottom:3px; }
+  .note-card.locked { color:#806040; text-align:center; letter-spacing:2px; }
+  button.btn {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(139,106,58,0.92) 0%, rgba(74,47,21,0.94) 100%), url("assets/ui/button_bg.png") center / 96px 32px repeat;
+    border: 1px solid #c0a070;
+    color: #f4d27a;
+    padding: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    margin: 4px 0;
+    border-radius: 3px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  button.btn:hover { background: linear-gradient(180deg, #c0a070 0%, #6b4a26 100%); }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .shop-float {
+    position: fixed;
+    left: 50%;
+    top: 36%;
+    transform: translate(-50%, 0);
+    z-index: 200;
+    color: #ffe58a;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px #ffd966, 0 0 22px #7a3f00, 2px 2px 0 #240d04;
+    pointer-events: none;
+    animation: shop-float-rise 0.9s ease-out forwards;
+  }
+  @keyframes shop-float-rise {
+    0% { opacity: 0; transform: translate(-50%, 18px) scale(0.88); }
+    18% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -54px) scale(1.08); }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: linear-gradient(180deg, rgba(58,37,21,0.95) 0%, rgba(26,10,4,0.97) 100%), url("assets/ui/modal_bg.png") center / 128px 96px repeat;
+    border: 3px solid #c0a070;
+    padding: 30px 40px;
+    max-width: 620px;
+    text-align: center;
+    border-radius: 6px;
+    box-shadow: 0 0 40px rgba(255,215,102,0.4);
+  }
+  .modal h2 {
+    font-size: 24px;
+    color: #f4d27a;
+    margin-bottom: 16px;
+    letter-spacing: 4px;
+  }
+  .modal .legend-text {
+    font-size: 16px;
+    color: #ffd966;
+    line-height: 1.8;
+    margin: 16px 0;
+    font-style: italic;
+  }
+  .modal p { color: #c0a070; line-height: 1.6; margin: 8px 0; font-size: 14px; }
+  .modal .gold-large { color: #ffd966; font-size: 28px; font-weight: bold; margin: 14px 0; }
+  .leaderboard {
+    position: relative;
+    margin: 14px 0;
+    padding: 20px 18px;
+    color: #3b210c;
+    font-family: "Cinzel", "IM Fell English", Georgia, "Times New Roman", serif;
+    background:
+      radial-gradient(circle at 10% 8%, rgba(255,255,220,0.45), transparent 18%),
+      radial-gradient(circle at 88% 82%, rgba(105,55,12,0.25), transparent 25%),
+      linear-gradient(135deg, #e8c98a 0%, #d8ad65 42%, #b97b39 100%);
+    border: 3px solid #5a2c10;
+    border-radius: 12px 7px 15px 9px;
+    box-shadow:
+      inset 0 0 28px rgba(76, 35, 7, 0.42),
+      0 0 18px rgba(255, 210, 90, 0.22);
+    overflow: hidden;
+  }
+  .leaderboard::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 0% 0%, #1b0902 0 9px, transparent 18px),
+      radial-gradient(circle at 100% 0%, #1b0902 0 12px, transparent 22px),
+      radial-gradient(circle at 0% 100%, #1b0902 0 13px, transparent 24px),
+      radial-gradient(circle at 100% 100%, #1b0902 0 10px, transparent 20px),
+      linear-gradient(90deg, rgba(45,13,1,0.78), transparent 10%, transparent 90%, rgba(45,13,1,0.78)),
+      linear-gradient(0deg, rgba(45,13,1,0.8), transparent 8%, transparent 92%, rgba(45,13,1,0.8));
+    mix-blend-mode: multiply;
+    z-index: 2;
+  }
+  .leaderboard-scroll {
+    position: relative;
+    z-index: 1;
+    max-height: min(54vh, 430px);
+    overflow-y: auto;
+    padding: 0 6px 2px;
+  }
+  .leaderboard-scroll::-webkit-scrollbar { width: 7px; }
+  .leaderboard-scroll::-webkit-scrollbar-track { background: rgba(75, 35, 8, 0.22); }
+  .leaderboard-scroll::-webkit-scrollbar-thumb {
+    background: rgba(90, 44, 16, 0.72);
+    border-radius: 8px;
+  }
+  .leaderboard-title {
+    position: relative;
+    font-size: 25px;
+    letter-spacing: 5px;
+    color: #3a1a05;
+    text-shadow: 0 1px 0 #f4d99b, 0 0 8px rgba(75,30,0,0.35);
+    font-weight: bold;
+  }
+  .leaderboard-subtitle {
+    position: relative;
+    font-size: 12px;
+    color: #6c3912;
+    margin: 4px 0 14px;
+    letter-spacing: 1px;
+  }
+  .leader-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 48px 1fr 90px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin: 5px 0;
+    border-top: 1px solid rgba(74,35,8,0.35);
+    border-bottom: 1px solid rgba(255,232,170,0.28);
+    background:
+      linear-gradient(90deg, rgba(83,38,8,0.14), rgba(255,238,172,0.1), rgba(83,38,8,0.12));
+  }
+  .leader-row::after {
+    content: "𓂀 𓆣 𓋹 𓏏 𓊖";
+    position: absolute;
+    left: 50%;
+    bottom: -9px;
+    transform: translateX(-50%);
+    color: rgba(82, 39, 8, 0.42);
+    font-size: 11px;
+    letter-spacing: 6px;
+    white-space: nowrap;
+  }
+  .leader-rank { font-weight: bold; }
+  .leader-name {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .leader-score {
+    justify-self: end;
+    text-align: right;
+    font-weight: bold;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    column-gap: 4px;
+    row-gap: 1px;
+    max-width: 112px;
+    line-height: 1.08;
+  }
+  .leader-score .score-num {
+    display: inline-block;
+    max-width: 96px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .leader-score .score-unit {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .leader-time {
+    grid-column: 2 / 4;
+    text-align: left;
+    color: rgba(73, 36, 9, 0.68);
+    font-size: 10px;
+    margin-top: -2px;
+  }
+  .leader-row.rank-1 {
+    grid-template-columns: 58px 1fr 106px;
+    margin: 10px 0;
+    padding: 13px 12px;
+    color: #ffd76a;
+    font-size: 24px;
+    background: radial-gradient(circle at center, rgba(255,230,125,0.55), rgba(94,41,4,0.44));
+    box-shadow: 0 0 18px rgba(255,210,70,0.7), inset 0 0 16px rgba(255,236,150,0.4);
+    border-top: 2px solid #ffd76a;
+    border-bottom: 2px solid #ffd76a;
+    text-shadow: 0 0 5px #2a1203, 0 0 12px rgba(255,221,94,0.85);
+  }
+  .leader-row.rank-2,
+  .leader-row.rank-3 {
+    color: #e2e2df;
+    font-size: 20px;
+    background: linear-gradient(90deg, rgba(65,65,72,0.58), rgba(165,165,160,0.22));
+    border-left: 5px solid #e2e2df;
+    text-shadow: 0 0 7px #201b14;
+  }
+  .leader-row.rank-4,
+  .leader-row.rank-5,
+  .leader-row.rank-6,
+  .leader-row.rank-7,
+  .leader-row.rank-8,
+  .leader-row.rank-9,
+  .leader-row.rank-10 {
+    color: #7d3f14;
+  }
+  .leader-row.is-current {
+    outline: 3px solid #58d9ff;
+    box-shadow: 0 0 18px rgba(80,210,255,0.8), inset 0 0 12px rgba(80,210,255,0.2);
+  }
+  .leader-empty {
+    position: relative;
+    padding: 18px;
+    color: #6c3912;
+  }
+  .leader-input {
+    width: 100%;
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 2px solid #8b6a3a;
+    border-radius: 4px;
+    background: #1a0a04;
+    color: #f4d27a;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    text-align: center;
+  }
+  #shop-items { margin: 16px 0; }
+  #shop-items.merchant-shop {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .shop-item {
+    text-align: left;
+    padding: 8px;
+    border: 1px solid #6b4a26;
+    margin: 6px 0;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.3);
+  }
+  .shop-item .name { color: #f4d27a; font-weight: bold; font-size: 14px; }
+  .shop-item .desc { color: #a08660; font-size: 11px; margin: 4px 0; }
+  .shop-item .price { color: #ffd966; font-size: 12px; }
+  .help-text {
+    font-size: 10px;
+    color: #806040;
+    line-height: 1.5;
+    margin-top: 10px;
+  }
+  .help-text kbd {
+    background: #4a3220;
+    border: 1px solid #8b6a3a;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: monospace;
+    color: #f4d27a;
+  }
+  .bomb-placed::after {
+    content: "💣";
+    position: absolute;
+    font-size: 20px;
+    z-index: 15;
+    animation: bomb-pulse 1s ease-in-out infinite;
+  }
+  @keyframes bomb-pulse {
+    0%,100% { transform: scale(1); filter: drop-shadow(0 0 2px #ff0); }
+    50% { transform: scale(1.15); filter: drop-shadow(0 0 6px #ff0); }
+  }
+  .explosion-effect {
+    position: absolute;
+    inset: -2px;
+    z-index: 25;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    animation: explode-burst 0.6s ease-out forwards;
+  }
+  .epic-flash {
+    animation: epic-gold-flash 1.2s ease-out;
+  }
+  .screen-shake {
+    animation: boss-screen-shake 0.75s ease-in-out;
+  }
+  @keyframes epic-gold-flash {
+    0% { filter: brightness(1); box-shadow: 0 0 30px rgba(139,69,19,0.4); }
+    25% { filter: brightness(2.2); box-shadow: 0 0 70px rgba(255,215,80,1), inset 0 0 40px rgba(255,230,120,0.8); }
+    100% { filter: brightness(1); box-shadow: 0 0 30px rgba(139,69,19,0.4); }
+  }
+  @keyframes boss-screen-shake {
+    0%,100% { transform: translate(0,0); }
+    15% { transform: translate(-5px,2px); }
+    30% { transform: translate(4px,-3px); }
+    45% { transform: translate(-3px,4px); }
+    60% { transform: translate(5px,-1px); }
+    75% { transform: translate(-2px,-3px); }
+  }
+  @keyframes explode-burst {
+    0% { transform: scale(0.3); opacity: 0; }
+    30% { transform: scale(1.4); opacity: 1; }
+    60% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <h1>绝命寻宝</h1>
+    <div class="subtitle">法老的诅咒</div>
+
+    <div class="stat-row"><span class="stat-label">回 合</span><span class="stat-value"><span id="turn">1</span></span></div>
+    <div class="stat-row"><span class="stat-label">诅 咒</span><span class="stat-value" id="curse-text" style="color:#ff7ad9">0 / 100</span></div>
+    <div class="curse-bar-outer"><div class="curse-bar-inner" id="curse-bar" style="width:0%"></div></div>
+    <div class="stat-row"><span class="stat-label">冒 险</span><span class="stat-value">第 <span id="adventure">1</span> 次</span></div>
+    <div class="stat-row"><span class="stat-label">生 命</span><span class="stat-value hp-hearts" id="hp">♥♥♥</span></div>
+    <div class="stat-row"><span class="stat-label">金 币</span><span class="stat-value gold" id="gold" style="color:#ffd966">0</span></div>
+    <div class="stat-row"><span class="stat-label">遗 物</span><span class="stat-value" id="relics">📜 0 / 13</span></div>
+    <div class="stat-row"><span class="stat-label">状 态</span><span class="stat-value" id="phase" style="color:#a08660">沉睡期</span></div>
+
+    <div class="help-text">
+      <kbd>WASD / ↑↓←→</kbd> 移动<br>
+      <kbd>1-9</kbd> 选中道具 <kbd>空格</kbd> 使用<br>
+      <kbd>鼠标</kbd> 点击相邻格移动 / 点击道具使用<br>
+      <kbd>R</kbd> 重新开始<br><br>
+      • 第10回合前怪物沉睡<br>
+      • 移动会累积诅咒值，满100死亡<br>
+      • 拾取绿色净化道具可降低诅咒<br>
+      • 坑位与墙壁会阻挡移动
+    </div>
+    <button class="btn" id="notebook-btn" style="margin-top:10px">探险笔记</button>
+    <button class="btn" id="leaderboard-btn" style="margin-top:10px">亡者之碑</button>
+    <button class="btn" id="sound-btn" style="margin-top:6px">声音：开</button>
+    <button class="btn" id="restart-btn" style="margin-top:6px">重新开始</button>
+  </div>
+
+  <!-- BOARD -->
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel">
+    <h1 style="font-size:14px; letter-spacing:2px;">探险日志</h1>
+    <div class="log" id="log"></div>
+    <hr style="border:0; border-top:1px dashed #6b4a26; margin: 10px 0">
+    <div style="font-size:11px;color:#a08660;letter-spacing:2px;text-align:center;margin-bottom:4px">道 具 栏</div>
+    <div class="bag-status" id="bag-status">背包 0 / 3</div>
+    <div class="item-grid" id="item-grid"></div>
+    <div style="font-size:11px;color:#a08660;letter-spacing:2px;text-align:center;margin:10px 0 4px">永久道具 / 武器</div>
+    <div class="permanent-list" id="permanent-list">暂无</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+'use strict';
+
+const VIEW_SIZE = 12;
+const SIZE = 12;
+const MAX_TURN = 20;
+const AWAKEN_TURN = 10;
+const STARTUP_HP = 3;
+const CURSE_MAX = 100;
+const CURSE_PER_MOVE = 5;
+const FLASH_PRICE = 100;
+const BOMB_PRICE = 150;
+const DAGGER_PRICE = 120;
+const SCROLL_PRICE = 300;
+const ROPE_PRICE = 300;
+const ANTIDOTE_PRICE = 60;
+const HOLY_LIGHT_PRICE = 120;
+const HOOK_PRICE = 150;
+const GUN_PRICE = 300;
+const BULLET_PRICE = 40;
+const BACKPACK_UPGRADE_PRICES = [300, 1000];
+const GUN_UPGRADE_PRICES = [1000, 2000];
+const CURSE_EYE_PRICES = [300, 1000, 2000];
+const PURIFY_EYE_PRICES = [300, 1000, 2000];
+const MERCHANT_GUILD_PRICE = 1000;
+const TOTAL_RELICS = 13;
+const PHARAOH_SEAL_PRICE = 5000;
+const LEADERBOARD_KEY = 'pharaoh_curse_leaderboard_v1';
+const NOTEBOOK_KEY = 'pharaoh_curse_notebook_v1';
+
+const PURIFY_TYPES = {
+  scarab: { name: '圣甲虫护符', icon: '🪲', cssClass: 'scarab', reduce: 10, weight: 50, oneshot: false,
+    desc: '一枚小小的圣甲虫雕刻，握在手中时，你感到身上的诅咒略微松动了。' },
+  water:  { name: '生命之水',   icon: '💧', cssClass: 'water',  reduce: 20, weight: 30, oneshot: false,
+    desc: '石缝中渗出的一汪清泉，水中倒映着你自己的脸——那是一张没有被诅咒的脸。' },
+  eye:    { name: '荷鲁斯之眼', icon: '👁️', cssClass: 'eye',    reduce: 30, weight: 15, oneshot: false,
+    desc: '镶嵌在墙壁上的荷鲁斯之眼，它注视着你时，你身上的黑色纹路开始消退。' },
+  altar:  { name: '圣光祭坛',   icon: '✨', cssClass: 'altar',  reduce: 40, weight: 5,  oneshot: true,
+    desc: '祭坛上燃烧着永不熄灭的火焰。你靠近时，火焰猛地窜高——它也在对抗诅咒。' },
+};
+
+const RELIC_DEFS = [
+  { id: 'golden_mask', name: '黄金面具', icon: '🎭', cursed: false, inscription: '戴上我者，将看到世间一切财富的脉络。', desc: '法老生前佩戴的金面具，据说能让他看到“财富的流动”。你戴上它时，感觉到口袋里的每一枚金币都在变重。' },
+  { id: 'bronze_scepter', name: '青铜权杖', icon: '♜', cursed: false, inscription: '持我者，将拥有击碎一切的力量。', desc: '法老用以统治的权杖。你握紧它时，感觉到一股力量在手臂中涌动。' },
+  { id: 'eternal_jar', name: '永恒之壶', icon: '🏺', cursed: false, inscription: '饮我者，将拥有双倍的时间对抗黑暗。', desc: '法老用来盛放“灵魂之酒”的器皿。传说饮下其中的液体，可以让人在黑暗中多活一倍的时间。' },
+  { id: 'sun_disk', name: '太阳圆盘', icon: '☀', cursed: false, inscription: '佩戴我者，将见证黑暗中的一切真相。', desc: '献给太阳神拉的贡品。它会在黑暗中为你照亮更远的道路。' },
+  { id: 'judgement_scale', name: '裁决天平', icon: '⚖', cursed: false, inscription: '持我者，善行将获得双倍回报。', desc: '用于“称量灵魂”的神圣天平。今天，它向善的一端倾斜。' },
+  { id: 'memory_tablet', name: '记忆石碑', icon: '▣', cursed: false, inscription: '触摸我者，将洞悉这座墓穴的一切秘密。', desc: '一块刻着“地图”的石碑。墓穴的轮廓涌入你的脑海。' },
+  { id: 'serpent_eye', name: '毒蛇之眼', icon: '🐍', cursed: true, inscription: '凝视我者，将看到财富与死亡的双重面孔。', desc: '这只眼睛嵌在宝石中，凝视着它的人，会看到无穷的财富……和无穷的黑暗。' },
+  { id: 'sandstorm_ring', name: '沙暴之环', icon: '◎', cursed: true, inscription: '戴上我者，将拥有风的速度——和沙的宿命。', desc: '戴上它的人，会获得风的速度，但每一步都可能是最后一步。' },
+  { id: 'sacrifice_blade', name: '献祭之刃', icon: '🗡', cursed: true, inscription: '持我者，将以鲜血换取财富——每一滴血都不会被遗忘。', desc: '法老用来进行活人祭祀的匕首。每一次杀戮，都意味着一次献祭。' },
+  { id: 'soul_hourglass', name: '碎魂沙漏', icon: '⌛', cursed: true, inscription: '摇动我者，将逆转时间——但代价将是永恒的。', desc: '它可以逆转时间，但代价是献祭一部分灵魂。' },
+  { id: 'obsidian_tablet', name: '黑曜石板', icon: '▰', cursed: true, inscription: '交易我者，将以灵魂换取财富。', desc: '这面黑曜石镜能映出灵魂中最贪婪的部分。' },
+  { id: 'life_seed', name: '生命之树种子', icon: '✹', cursed: false, inscription: '握我者，将得到一次新生。', desc: '古树最后的种子被藏在墓穴深处。你握着它时，感觉到一股暖流涌入身体。' },
+  { id: 'pharaoh_coin', name: '法老的金币', icon: '🪙', cursed: false, inscription: '拾起我者，将获得足以改变命运的财富。', desc: '法老生前铸造的“永远花不完的金币”。它沉甸甸的，几乎要压弯你的手指。' },
+];
+const RELIC_MAP = Object.fromEntries(RELIC_DEFS.map(r => [r.id, r]));
+const MONSTER_TYPES = {
+  mummy: { name: '木乃伊', moveEvery: 2, attack: 2, hp: 3, className: 'mummy' },
+  bat: { name: '蝙蝠', moveEvery: 1, attack: 1, hp: 1, className: 'bat' },
+  ghost: { name: '幽灵', moveEvery: 1, attack: 1, hp: Infinity, className: 'ghost', phase: true },
+  scarab: { name: '圣甲虫', moveEvery: 1, attack: 1, hp: 1, className: 'scarab-monster' },
+  scorpion: { name: '巨蝎', moveEvery: 2, attack: 2, hp: 2, className: 'scorpion' },
+  priest: { name: '祭司魂魄', moveEvery: 1, attack: 0, hp: 3, className: 'priest', phase: true },
+  gargoyle: { name: '石像鬼', moveEvery: 3, attack: 2, hp: 4, className: 'gargoyle' },
+  jackal: { name: '豺狼看守', moveEvery: 1, attack: 3, hp: 3, className: 'jackal' },
+  giant_scarab: { name: '巨型圣甲虫', moveEvery: 2, attack: 3, hp: 8, className: 'giant-scarab' },
+};
+const NOTEBOOK_MONSTERS = [
+  { id: 'bat', name: '蝙蝠', desc: '墓穴中最常见的飞行生物，生命很低，但苏醒后每回合都会追向你。', hint: '很脆弱，普通武器足以处理。', kill: '用匕首、枪或炸弹都能轻松击杀。' },
+  { id: 'mummy', name: '木乃伊', desc: '迟缓但结实的墓穴守卫，靠近后会造成较高伤害。', hint: '移动慢，可以拉开距离后用枪或炸弹处理。', kill: '匕首可多次攻击击杀，枪和炸弹能更安全地解决。' },
+  { id: 'ghost', name: '幽灵', desc: '无实体，能穿墙越坑，普通刀刃很难伤到它。', hint: '无实体，无法用物理手段消灭。或许可以试试神圣法术？', kill: '圣光术可以伤害幽灵；圣弹改造后的手枪也能命中幽灵。' },
+  { id: 'scarab', name: '圣甲虫', desc: '从圣甲虫巢穴爬出的虫群，会追踪并摧毁净化道具。', hint: '生命很低，尽快击杀能保护地图上的净化资源。', kill: '任意伤害都能击杀；拥有献祭之刃时击杀还会额外获得金币。' },
+  { id: 'scorpion', name: '巨蝎', desc: '潜伏在沙地里的毒物，攻击会让玩家中毒并持续增加诅咒。', hint: '不要让它贴身。中毒后可以用解毒剂清除。', kill: '用远程武器、炸弹或圣光术处理较安全。' },
+  { id: 'priest', name: '祭司魂魄', desc: '不会直接攻击玩家，而会前往诅咒水井旁祈祷并强化污染。', hint: '它本身没有攻击力，但拖太久会让诅咒地形变得危险。', kill: '圣光术、枪械或近战都能击杀，优先清除可阻止诅咒水井强化。' },
+  { id: 'gargoyle', name: '石像鬼', desc: '初始为石化状态，玩家靠近后苏醒，离开一定范围后重新石化。', hint: '石化时免疫伤害。先引它苏醒，再选择合适时机攻击。', kill: '苏醒后可用枪、圣光术或多次近战击杀。' },
+  { id: 'jackal', name: '豺狼看守', desc: '成对出现的墓穴猎犬，一只死亡会让另一只短暂狂暴。', hint: '最好连续处理一对，避免狂暴个体长时间追击。', kill: '集中火力成对击杀；第二只倒下时会获得额外金币。' },
+  { id: 'giant_scarab', name: '巨型圣甲虫', desc: '极稀有的虫群 Boss，移动会留下诅咒地格，还会周期性制造流沙。', hint: '炸弹对它无效。它的甲壳似乎惧怕圣光。', kill: '圣光术对它造成 5 点伤害，是最有效的克制手段。' },
+];
+const NOTEBOOK_TERRAINS = [
+  { id: 'exit', name: '出生点 / 脱离点', desc: '玩家进入地图时的初始位置，也是默认撤离点。返回并点击该格，可以结束当次冒险。' },
+  { id: 'pit', name: '坑位', desc: '黑色深坑会阻挡玩家和多数怪物移动，幽灵可以越过。' },
+  { id: 'wall', name: '墙壁', desc: '墙壁会阻挡移动、视线和大多数怪物路径。' },
+  { id: 'well', name: '水井', desc: '水井阻挡移动，每 5 回合会在周围生成生命之水。' },
+  { id: 'cracked', name: '破碎地面', desc: '玩家踩上去时不会立刻塌陷，离开后会变成坑位。' },
+  { id: 'quicksand', name: '流沙陷阱', desc: '玩家踩中会损失 1 点生命。' },
+  { id: 'cursed_ground', name: '诅咒地格', desc: '玩家踩中会增加诅咒值，圣光术可以净化。' },
+  { id: 'cursed_well', name: '诅咒水井', desc: '阻挡移动，每 5 回合污染周围地面；祭司魂魄祈祷后污染范围扩大。' },
+  { id: 'scarab_nest', name: '圣甲虫巢穴', desc: '踩中会释放圣甲虫。每 3 回合可再次释放，释放 3 次后枯竭；炸弹和圣光术都能处理。' },
+  { id: 'trapdoor', name: '陷阱门', desc: '踩中后传送到地图另一侧并损失生命；钩爪可安全触发，圣甲虫护符有概率免疫伤害。' },
+  { id: 'jackal_lair', name: '豺狼巢穴', desc: '豺狼看守的生成点，通常出现在地图边缘。' },
+];
+const DIR_INFO = [
+  { key: 'N', opposite: 'S', dx: 0, dy: -1 },
+  { key: 'E', opposite: 'W', dx: 1, dy: 0 },
+  { key: 'S', opposite: 'N', dx: 0, dy: 1 },
+  { key: 'W', opposite: 'E', dx: -1, dy: 0 },
+];
+
+const game = {};
+const audioState = {
+  enabled: true,
+  started: false,
+  currentBgm: '',
+  bgm: {},
+  sfx: {},
+  floatBatch: { curse: 0, gold: 0, timer: null },
+  floatLane: 0,
+};
+
+const ERA = ["第一纪元", "失落帝国", "深渊深处", "群星之外", "黄金时代", "瘟疫之年", "寂静纪", "万古荒原"];
+const NAME = ["深渊之眼", "永夜王冠", "寂静之刃", "破碎之心", "黄金面具", "古蛇之牙", "群星之钥", "枯萎权杖"];
+const EFFECT = ["看见不可名状之物", "聆听亡者低语", "踏入梦境与现实之间", "操纵时间的碎片", "唤醒沉睡之神", "永世孤独", "化身为风", "知晓万物之名"];
+
+function rng(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(arr) { return arr[rng(0, arr.length - 1)]; }
+function pickWeighted(map) {
+  const keys = Object.keys(map);
+  const total = keys.reduce((s, k) => s + (map[k].weight || 1), 0);
+  let r = Math.random() * total;
+  for (const k of keys) {
+    r -= (map[k].weight || 1);
+    if (r <= 0) return k;
+  }
+  return keys[0];
+}
+function currentMapSize() { return game.mapSize || SIZE; }
+function inBounds(x, y) { const s = currentMapSize(); return x >= 0 && x < s && y >= 0 && y < s; }
+function dist(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
+function keyOf(x, y) { return `${x},${y}`; }
+function getNotebook() {
+  try {
+    const data = JSON.parse(localStorage.getItem(NOTEBOOK_KEY) || '{}');
+    return {
+      terrains: Array.isArray(data.terrains) ? data.terrains : [],
+      monsters: Array.isArray(data.monsters) ? data.monsters : [],
+      monsterKills: Array.isArray(data.monsterKills) ? data.monsterKills : [],
+      relics: Array.isArray(data.relics) ? data.relics : [],
+    };
+  } catch {
+    return { terrains: [], monsters: [], monsterKills: [], relics: [] };
+  }
+}
+function saveNotebook(data) { localStorage.setItem(NOTEBOOK_KEY, JSON.stringify(data)); }
+function unlockNotebook(kind, id) {
+  if (!id) return;
+  const data = getNotebook();
+  if (!data[kind]) return;
+  if (!data[kind].includes(id)) {
+    data[kind].push(id);
+    saveNotebook(data);
+  }
+}
+function markMonsterKilled(type) {
+  const data = getNotebook();
+  if (!data.monsters.includes(type)) data.monsters.push(type);
+  if (!data.monsterKills.includes(type)) data.monsterKills.push(type);
+  saveNotebook(data);
+}
+
+function setupAudio() {
+  if (audioState.ready) return;
+  audioState.ready = true;
+  audioState.bgm = {
+    normal: new Audio('assets/audio/bgm_normal.wav'),
+    danger: new Audio('assets/audio/bgm_danger.wav'),
+    poison: new Audio('assets/audio/bgm_poison.wav'),
+  };
+  Object.values(audioState.bgm).forEach(a => {
+    a.loop = true;
+    a.volume = 0.22;
+  });
+  audioState.sfx = {
+    coin: 'assets/audio/sfx_coin.wav',
+    purify: 'assets/audio/sfx_purify.wav',
+    explosion: 'assets/audio/sfx_explosion.wav',
+    hook: 'assets/audio/sfx_hook.wav',
+    curse: 'assets/audio/sfx_curse.wav',
+    dagger: 'assets/audio/sfx_dagger.wav',
+    gun: 'assets/audio/sfx_gun.wav',
+    hit: 'assets/audio/sfx_hit.wav',
+    hazard: 'assets/audio/sfx_hazard.wav',
+    crack: 'assets/audio/sfx_crack.wav',
+  };
+}
+
+function ensureAudioStarted() {
+  setupAudio();
+  if (!audioState.enabled || audioState.started) return;
+  audioState.started = true;
+  updateBgmState(true);
+}
+
+function playSfx(name) {
+  if (!audioState.enabled) return;
+  setupAudio();
+  const src = audioState.sfx[name];
+  if (!src) return;
+  const a = new Audio(src);
+  a.volume = name === 'explosion' ? 0.48 : 0.36;
+  a.play().catch(() => {});
+}
+
+function updateBgmState(force = false) {
+  setupAudio();
+  if (!audioState.enabled || !audioState.started || game.over) return;
+  const next = game.poisonTurns > 0 ? 'poison' : game.hp <= 1 ? 'danger' : 'normal';
+  if (!force && next === audioState.currentBgm) return;
+  Object.entries(audioState.bgm).forEach(([k, a]) => {
+    if (k === next) {
+      a.volume = next === 'normal' ? 0.22 : 0.28;
+      a.play().catch(() => {});
+    } else {
+      a.pause();
+      a.currentTime = 0;
+    }
+  });
+  audioState.currentBgm = next;
+}
+
+function stopBgm() {
+  setupAudio();
+  Object.values(audioState.bgm).forEach(a => { a.pause(); a.currentTime = 0; });
+  audioState.currentBgm = '';
+}
+function getAdventureMapSize() {
+  if (game.adventures >= 10) return 120;
+  if (game.adventures >= 5) return 40;
+  if (game.adventures >= 3) return 20;
+  return 12;
+}
+
+function hasRelic(id) {
+  return Array.isArray(game.collectedRelics) && game.collectedRelics.includes(id);
+}
+
+function getMaxHp() {
+  const conquerBonus = game.pharaohConquered ? 2 : 0;
+  const hourglassPenalty = game.hourglassPenalty || 0;
+  return Math.max(1, STARTUP_HP + conquerBonus - hourglassPenalty);
+}
+
+function getVisionRadius() {
+  return hasRelic('sun_disk') ? 2 : 1;
+}
+
+function getDamageAmount(base) {
+  return hasRelic('bronze_scepter') ? Math.round(base * 1.5) : base;
+}
+
+function getGoldAmount(base) {
+  let multiplier = 1;
+  if (hasRelic('golden_mask')) multiplier += 0.3;
+  if (hasRelic('serpent_eye')) multiplier += 0.5;
+  return Math.round(base * multiplier);
+}
+
+function getMoveCurseGain() {
+  let amount = CURSE_PER_MOVE;
+  if (hasRelic('eternal_jar')) amount *= 0.5;
+  if (hasRelic('serpent_eye')) amount *= 1.5;
+  amount = Math.max(1, Math.round(amount));
+  if (hasRelic('sandstorm_ring')) {
+    game.sandstormStep = (game.sandstormStep || 0) + 1;
+    if (game.sandstormStep % 2 === 1) amount = 0;
+  }
+  return amount;
+}
+
+function hasAnyWeapon() {
+  return !!(game.hasDagger || game.hasGun);
+}
+
+function hasEverHadHolyLight() {
+  return !!(game.holyLights > 0 || game.everHadHolyLight || game.hasPharaohSeal);
+}
+
+function log(msg, cls = '') {
+  const el = document.getElementById('log');
+  const p = document.createElement('p');
+  if (cls) p.className = cls;
+  p.innerHTML = msg;
+  el.insertBefore(p, el.firstChild);
+  while (el.children.length > 40) el.removeChild(el.lastChild);
+}
+
+function createMonster(type, x, y, extra = {}) {
+  const def = MONSTER_TYPES[type];
+  return { id: game.monsterIdSeq++, x, y, type, hp: def.hp, maxHp: def.hp, ...extra };
+}
+
+function newGame(firstTime = true) {
+  if (audioState.started) updateBgmState(true);
+  if (typeof game.gold !== 'number') game.gold = 0;
+  if (typeof game.adventures !== 'number') game.adventures = 1;
+  if (typeof game.hasDagger !== 'boolean') game.hasDagger = false;
+  if (typeof game.flashlights !== 'number') game.flashlights = 0;
+  if (typeof game.bombs !== 'number') game.bombs = 0;
+  if (typeof game.scrolls !== 'number') game.scrolls = 0;
+  if (typeof game.ropes !== 'number') game.ropes = 0;
+  if (typeof game.hooks !== 'number') game.hooks = 0;
+  if (typeof game.antidotes !== 'number') game.antidotes = 0;
+  if (typeof game.holyLights !== 'number') game.holyLights = 0;
+  if (typeof game.everHadHolyLight !== 'boolean') game.everHadHolyLight = game.holyLights > 0;
+  if (typeof game.hasGun !== 'boolean') game.hasGun = false;
+  if (typeof game.bullets !== 'number') game.bullets = 0;
+  if (typeof game.backpackLevel !== 'number') game.backpackLevel = 0;
+  if (typeof game.gunLevel !== 'number') game.gunLevel = 0;
+  if (typeof game.curseEyeLevel !== 'number') game.curseEyeLevel = 0;
+  if (typeof game.purifyEyeLevel !== 'number') game.purifyEyeLevel = 0;
+  if (typeof game.hasMerchantGuild !== 'boolean') game.hasMerchantGuild = false;
+  if (!Array.isArray(game.collectedRelics)) game.collectedRelics = [];
+  if (typeof game.hourglassUsed !== 'boolean') game.hourglassUsed = false;
+  if (typeof game.hourglassPenalty !== 'number') game.hourglassPenalty = 0;
+  if (typeof game.pharaohConquered !== 'boolean') game.pharaohConquered = false;
+  if (typeof game.hasPharaohSeal !== 'boolean') game.hasPharaohSeal = false;
+  if (typeof game.pharaohGateUnlocked !== 'boolean') game.pharaohGateUnlocked = false;
+  game.over = false;
+  game.mapSize = getAdventureMapSize();
+  game.turn = 1;
+  game.curse = 0;
+  game.hp = getMaxHp();
+  game.adventureGold = 0;
+  game.relicsCollected = game.collectedRelics.length;
+  game.sandstormStep = 0;
+  game.cursedGrounds = new Set();
+  game.quicksands = new Set();
+  game.cursedWells = new Set();
+  game.scarabNests = {};
+  game.trapdoors = new Set();
+  game.jackalLairs = new Set();
+  game.poisonTurns = 0;
+  game.scarabTalismanGrace = false;
+  game.empoweredCursedWells = new Set();
+  game.placedBomb = null;
+  game.flashlitCells = new Set();
+  game.attackCell = null;
+  game.aim = null;
+  game.curseEyeMarks = new Set();
+  game.purifyEyeMarks = new Set();
+  game.monsterIdSeq = 1;
+  game.shopOpen = false;
+  game.modalOpen = false;
+
+  // start position
+  if (firstTime) {
+    const c = Math.floor(game.mapSize / 2);
+    game.start = { x: c, y: c };
+  } else {
+    game.start = { x: rng(2, game.mapSize - 3), y: rng(2, game.mapSize - 3) };
+  }
+  game.player = { x: game.start.x, y: game.start.y };
+  game.exits = new Set([keyOf(game.start.x, game.start.y)]);
+  if (game.adventures >= 5) addExtraExits();
+  game.crackedFloors = new Set();
+  game.pendingCrackCollapse = '';
+
+  game.relics = {};
+
+  buildTerrain();
+  buildWells();
+  buildHazardGrounds();
+  updateRelicWindow();
+  buildRelics();
+  buildNewTerrain();
+
+  // build monsters: first adventure is fixed, later adventures are random
+  game.monsters = [];
+  buildMonsters();
+  buildSpecialMonsters();
+  updateCurseEyeMarks();
+
+  // build treasures
+  game.treasures = {};
+  const treasureChance = getTreasureChance();
+  for (let y = 0; y < game.mapSize; y++) {
+    for (let x = 0; x < game.mapSize; x++) {
+      const key = `${x},${y}`;
+      if (
+        !(x === game.start.x && y === game.start.y) &&
+        !isExit(x, y) &&
+        !game.pits.has(key) &&
+        !game.relics[key] &&
+        !game.wells.has(key) &&
+        !(game.cursedWells && game.cursedWells.has(key)) &&
+        !(game.crackedFloors && game.crackedFloors.has(key)) &&
+        !(game.quicksands && game.quicksands.has(key)) &&
+        !(game.cursedGrounds && game.cursedGrounds.has(key)) &&
+        !(game.scarabNests && game.scarabNests[key]) &&
+        !(game.trapdoors && game.trapdoors.has(key)) &&
+        !(game.jackalLairs && game.jackalLairs.has(key)) &&
+        !monsterAt(x, y) &&
+        Math.random() < treasureChance
+      ) {
+        game.treasures[key] = makeTreasure(x, y);
+      }
+    }
+  }
+
+  // build purify items - first adventure is safer; later adventures still provide support
+  game.purifies = {};
+  const purifyCount = game.adventures === 1 ? rng(8, 10) : rng(4, 7);
+  let purAttempts = 0;
+  while (Object.keys(game.purifies).length < purifyCount && purAttempts < 400) {
+    purAttempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    const key = `${x},${y}`;
+    if (x === game.start.x && y === game.start.y) continue;
+    if (isExit(x, y)) continue;
+    if (game.adventures === 1 && dist({ x, y }, game.start) <= 3) continue;
+    if (game.pits.has(key) || game.relics[key] || game.treasures[key] || game.wells.has(key) || (game.cursedWells && game.cursedWells.has(key)) || (game.crackedFloors && game.crackedFloors.has(key)) || (game.quicksands && game.quicksands.has(key)) || (game.cursedGrounds && game.cursedGrounds.has(key))) continue;
+    if (monsterAt(x, y)) continue;
+    game.purifies[key] = pickWeighted(PURIFY_TYPES);
+  }
+  if (game.adventures === 1) addFirstAdventureSafetyPurifies();
+  updatePurifyEyeMarks();
+
+  // fog of war / revealed
+  game.revealed = Array.from({length: game.mapSize}, () => Array(game.mapSize).fill(false));
+  revealInitialArea();
+  applyMemoryTabletHints();
+
+  buildBoard();
+  document.getElementById('log').innerHTML = '';
+  log(`第 ${game.adventures} 次冒险开始。`, 'important');
+  log('你踏入了远古遗迹的大门……', 'important');
+  log('迷雾笼罩，未知的财富等待着勇者。');
+  log('每一步移动都会加深诅咒，注意拾取绿色净化道具。');
+  if (game.hasPharaohSeal) {
+    game.holyLights++;
+    game.everHadHolyLight = true;
+    log('法老之印发出微光：本次探险初始获得 1 个圣光术。', 'gold');
+  }
+  render();
+  if (firstTime) {
+    showOpeningStory();
+  } else if (game.adventures === 10) {
+    showEndlessStory();
+  }
+}
+
+function addExtraExits() {
+  const count = game.adventures >= 10 ? Math.max(8, Math.floor(game.mapSize / 20) * 2) : 1;
+  let attempts = 0;
+  while (game.exits.size < count + 1 && attempts < 1000) {
+    attempts++;
+    const x = rng(2, game.mapSize - 3);
+    const y = rng(2, game.mapSize - 3);
+    if (dist({ x, y }, game.start) < 8) continue;
+    game.exits.add(keyOf(x, y));
+  }
+}
+
+function addFirstAdventureSafetyPurifies() {
+  const candidates = [];
+  for (let y = game.start.y - 3; y <= game.start.y + 3; y++) {
+    for (let x = game.start.x - 3; x <= game.start.x + 3; x++) {
+      const key = `${x},${y}`;
+      if (!inBounds(x, y)) continue;
+      if (x === game.start.x && y === game.start.y) continue;
+      if (isExit(x, y)) continue;
+      if (dist({ x, y }, game.start) <= 3) continue;
+      if (Math.abs(x - game.start.x) + Math.abs(y - game.start.y) > 4) continue;
+      if (game.pits.has(key) || game.relics[key] || game.treasures[key] || game.purifies[key] || game.wells.has(key)) continue;
+      if (monsterAt(x, y)) continue;
+      candidates.push({ x, y });
+    }
+  }
+  candidates.sort(() => Math.random() - 0.5);
+  candidates.slice(0, 4).forEach((p, i) => {
+    game.purifies[`${p.x},${p.y}`] = i === 0 ? 'water' : 'scarab';
+  });
+}
+
+function updateRelicWindow() {
+  const idx = Math.floor((game.adventures - 1) / 5);
+  if (game.relicWindowIndex !== idx) {
+    game.relicWindowIndex = idx;
+    game.relicWindowMaps = 0;
+  }
+  if (typeof game.relicWindowMaps !== 'number') game.relicWindowMaps = 0;
+}
+
+function getRelicCountForMap() {
+  if (game.adventures < 3) return 0;
+  const positionInWindow = ((game.adventures - 1) % 5) + 1;
+  if (game.relicWindowMaps >= 3) return 0;
+  if (positionInWindow === 5 && game.relicWindowMaps === 0) return 1;
+  const roll = Math.random();
+  if (roll < 0.05 && game.relicWindowMaps <= 1) return 2;
+  if (roll < 0.15) return 1;
+  return 0;
+}
+
+function buildRelics() {
+  const count = getRelicCountForMap();
+  if (count <= 0) return;
+  const available = RELIC_DEFS.filter(r => !hasRelic(r.id)).sort(() => Math.random() - 0.5);
+  let attempts = 0;
+  while (Object.keys(game.relics).length < count && attempts < 800 && available.length) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    const key = keyOf(x, y);
+    if (x === game.start.x && y === game.start.y) continue;
+    if (isExit(x, y)) continue;
+    if (Math.abs(x - game.start.x) <= 2 && Math.abs(y - game.start.y) <= 2) continue;
+    if (game.pits.has(key) || (game.crackedFloors && game.crackedFloors.has(key))) continue;
+    if (game.quicksands && game.quicksands.has(key)) continue;
+    if (game.cursedGrounds && game.cursedGrounds.has(key)) continue;
+    if (game.wells && game.wells.has(key)) continue;
+    if (game.cursedWells && game.cursedWells.has(key)) continue;
+    if (game.relics[key]) continue;
+    if (monsterAt(x, y)) continue;
+    const relic = available.pop();
+    game.relics[key] = relic.id;
+  }
+  if (Object.keys(game.relics).length > 0) game.relicWindowMaps++;
+}
+
+function applyMemoryTabletHints() {
+  game.memoryRelicHints = new Set();
+  if (!hasRelic('memory_tablet')) return;
+  const relicSpots = Object.keys(game.relics || {}).map(k => {
+    const [x, y] = k.split(',').map(Number);
+    return { x, y, key: k, d: dist({ x, y }, game.player) };
+  }).sort((a, b) => a.d - b.d).slice(0, 3);
+  relicSpots.forEach(p => game.memoryRelicHints.add(p.key));
+}
+
+function buildTerrain() {
+  game.pits = new Set();
+  const pitCount = Math.round((Math.random() < 0.8 ? rng(4, 8) : rng(0, 3)) * game.mapSize / 12);
+  let attempts = 0;
+  while (game.pits.size < pitCount && attempts < 300) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    const key = `${x},${y}`;
+    if (x === game.start.x && y === game.start.y) continue;
+    if (isExit(x, y)) continue;
+    if (Math.abs(x - game.start.x) <= 1 && Math.abs(y - game.start.y) <= 1) continue;
+    if (game.relics[key]) continue;
+    game.pits.add(key);
+  }
+
+  game.walls = Array.from({ length: game.mapSize }, () =>
+    Array.from({ length: game.mapSize }, () => ({ N: false, E: false, S: false, W: false }))
+  );
+  const wallTarget = Math.round(rng(16, 24) * game.mapSize / 12);
+  let wallCount = 0;
+  attempts = 0;
+  while (wallCount < wallTarget && attempts < 600) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    const dir = pick(DIR_INFO);
+    const nx = x + dir.dx;
+    const ny = y + dir.dy;
+    if (!inBounds(nx, ny)) continue;
+    if (game.walls[y][x][dir.key]) continue;
+    if (countWalls(x, y) >= 3 || countWalls(nx, ny) >= 3) continue;
+    game.walls[y][x][dir.key] = true;
+    game.walls[ny][nx][dir.opposite] = true;
+    wallCount++;
+  }
+  buildCrackedFloors();
+}
+
+function buildCrackedFloors() {
+  game.crackedFloors = new Set();
+  if (game.adventures < 4) return;
+  const target = Math.round(rng(4, 8) * game.mapSize / 20);
+  let attempts = 0;
+  while (game.crackedFloors.size < target && attempts < 600) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    const key = keyOf(x, y);
+    if (x === game.start.x && y === game.start.y) continue;
+    if (isExit(x, y)) continue;
+    if (Math.abs(x - game.start.x) <= 1 && Math.abs(y - game.start.y) <= 1) continue;
+    if (game.pits.has(key) || game.relics[key]) continue;
+    game.crackedFloors.add(key);
+  }
+}
+
+function canPlaceHazard(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) &&
+    !(x === game.start.x && y === game.start.y) &&
+    !isExit(x, y) &&
+    !(Math.abs(x - game.start.x) <= 1 && Math.abs(y - game.start.y) <= 1) &&
+    !game.pits.has(key) &&
+    !(game.crackedFloors && game.crackedFloors.has(key)) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !game.relics[key] &&
+    !(game.quicksands && game.quicksands.has(key)) &&
+    !(game.cursedGrounds && game.cursedGrounds.has(key));
+}
+
+function buildHazardGrounds() {
+  game.quicksands = new Set();
+  game.cursedGrounds = new Set();
+  game.cursedWells = new Set();
+  if (game.adventures < 4) return;
+  const scale = Math.max(1, game.mapSize / 20);
+  const danger = Math.max(1, game.adventures - 3);
+  const quickTarget = Math.random() < Math.min(0.45 + danger * 0.07, 0.9) ? Math.round(rng(1, 2 + Math.min(6, danger)) * scale) : 0;
+  const cursedTarget = Math.random() < Math.min(0.5 + danger * 0.08, 0.92) ? Math.round(rng(1, 2 + Math.min(7, danger)) * scale) : 0;
+  const cursedWellTarget = Math.random() < Math.min(0.18 + danger * 0.05, 0.55) ? Math.max(1, Math.round(scale / 2)) : 0;
+  placeHazardSet(game.quicksands, quickTarget);
+  placeHazardSet(game.cursedGrounds, cursedTarget);
+  placeHazardSet(game.cursedWells, cursedWellTarget);
+}
+
+function placeHazardSet(set, target) {
+  let attempts = 0;
+  while (set.size < target && attempts < 800) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    if (!canPlaceHazard(x, y)) continue;
+    set.add(keyOf(x, y));
+  }
+}
+
+function canPlaceSpecialTerrain(x, y, opts = {}) {
+  const key = keyOf(x, y);
+  if (!inBounds(x, y)) return false;
+  if (x === game.start.x && y === game.start.y) return false;
+  if (isExit(x, y) && !opts.allowExit) return false;
+  if (game.pits.has(key) || (game.wells && game.wells.has(key))) return false;
+  if (game.cursedWells && game.cursedWells.has(key)) return false;
+  if (game.crackedFloors && game.crackedFloors.has(key)) return false;
+  if (game.quicksands && game.quicksands.has(key)) return false;
+  if (game.cursedGrounds && game.cursedGrounds.has(key)) return false;
+  if (game.scarabNests && game.scarabNests[key]) return false;
+  if (game.trapdoors && game.trapdoors.has(key)) return false;
+  if (game.jackalLairs && game.jackalLairs.has(key)) return false;
+  if (!opts.allowRelic && game.relics && game.relics[key]) return false;
+  return true;
+}
+
+function getRelicNearbyCells(radius = 5) {
+  const cells = [];
+  Object.keys(game.relics || {}).forEach(k => {
+    const [rx, ry] = k.split(',').map(Number);
+    for (let y = ry - radius; y <= ry + radius; y++) {
+      for (let x = rx - radius; x <= rx + radius; x++) {
+        if (inBounds(x, y) && dist({ x, y }, { x: rx, y: ry }) <= radius) cells.push({ x, y });
+      }
+    }
+  });
+  return cells.sort(() => Math.random() - 0.5);
+}
+
+function placeScarabNestAt(x, y) {
+  game.scarabNests[keyOf(x, y)] = { released: 0, nextTurn: 0, exhausted: false };
+}
+
+function buildNewTerrain() {
+  game.scarabNests = {};
+  game.trapdoors = new Set();
+  game.jackalLairs = new Set();
+  if (game.adventures >= 3) buildScarabNests();
+  if (game.adventures >= 5) buildTrapdoors();
+  if (game.adventures >= 6) buildJackalLairs();
+}
+
+function buildScarabNests() {
+  const target = game.adventures < 5 ? rng(1, 2) : Math.min(8, 2 + Math.floor((game.adventures - 5) / 3));
+  const usedBlocks = new Set();
+  const preferred = getRelicNearbyCells(5);
+  let attempts = 0;
+  while (Object.keys(game.scarabNests).length < target && attempts < 900) {
+    attempts++;
+    const p = preferred.length ? preferred.pop() : { x: rng(0, game.mapSize - 1), y: rng(0, game.mapSize - 1) };
+    const block = `${Math.floor(p.x / 10)},${Math.floor(p.y / 10)}`;
+    if (usedBlocks.has(block)) continue;
+    if (!canPlaceSpecialTerrain(p.x, p.y)) continue;
+    placeScarabNestAt(p.x, p.y);
+    usedBlocks.add(block);
+  }
+}
+
+function buildTrapdoors() {
+  const target = Math.min(12, 2 + Math.floor((game.adventures - 5) / 2));
+  let attempts = 0;
+  while (game.trapdoors.size < target && attempts < 900) {
+    attempts++;
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    if (dist({ x, y }, game.start) < Math.max(6, Math.floor(game.mapSize / 4))) continue;
+    if (!canPlaceSpecialTerrain(x, y)) continue;
+    game.trapdoors.add(keyOf(x, y));
+  }
+}
+
+function buildJackalLairs() {
+  const target = Math.min(2, Math.max(1, Math.floor((game.adventures - 6) / 4) + 1));
+  let attempts = 0;
+  while (game.jackalLairs.size < target && attempts < 500) {
+    attempts++;
+    const edge = pick(['N', 'S', 'W', 'E']);
+    const x = edge === 'W' ? rng(0, 3) : edge === 'E' ? rng(game.mapSize - 4, game.mapSize - 1) : rng(0, game.mapSize - 1);
+    const y = edge === 'N' ? rng(0, 3) : edge === 'S' ? rng(game.mapSize - 4, game.mapSize - 1) : rng(0, game.mapSize - 1);
+    if (!canPlaceSpecialTerrain(x, y)) continue;
+    game.jackalLairs.add(keyOf(x, y));
+  }
+}
+
+function buildWells() {
+  game.wells = new Set();
+  const usedFifteenBlocks = new Set();
+  for (let by = 0; by < game.mapSize; by += 20) {
+    for (let bx = 0; bx < game.mapSize; bx += 20) {
+      const candidates = [];
+      const maxY = Math.min(game.mapSize - 1, by + 19);
+      const maxX = Math.min(game.mapSize - 1, bx + 19);
+      for (let y = by; y <= maxY; y++) {
+        for (let x = bx; x <= maxX; x++) {
+          const key = keyOf(x, y);
+          const block15 = `${Math.floor(x / 15)},${Math.floor(y / 15)}`;
+          if (usedFifteenBlocks.has(block15)) continue;
+          if (x === game.start.x && y === game.start.y) continue;
+          if (isExit(x, y)) continue;
+          if (game.pits.has(key)) continue;
+          if (game.crackedFloors && game.crackedFloors.has(key)) continue;
+          if (game.scarabNests && game.scarabNests[key]) continue;
+          if (game.trapdoors && game.trapdoors.has(key)) continue;
+          if (game.jackalLairs && game.jackalLairs.has(key)) continue;
+          if (game.relics[key]) continue;
+          if (Math.abs(x - game.start.x) <= 1 && Math.abs(y - game.start.y) <= 1) continue;
+          candidates.push({ x, y, block15 });
+        }
+      }
+      if (!candidates.length) continue;
+      const p = pick(candidates);
+      game.wells.add(keyOf(p.x, p.y));
+      usedFifteenBlocks.add(p.block15);
+    }
+  }
+}
+
+function isEmptyGroundForWellWater(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) &&
+    !(x === game.player.x && y === game.player.y) &&
+    !isExit(x, y) &&
+    !game.pits.has(key) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !(game.quicksands && game.quicksands.has(key)) &&
+    !(game.cursedGrounds && game.cursedGrounds.has(key)) &&
+    !game.relics[key] &&
+    !game.treasures[key] &&
+    !(game.purifies && game.purifies[key]) &&
+    !monsterAt(x, y) &&
+    !(game.placedBomb && game.placedBomb.x === x && game.placedBomb.y === y);
+}
+
+function spawnWellWater() {
+  if (!game.wells || game.wells.size === 0) return;
+  let spawned = 0;
+  for (const wk of game.wells) {
+    const [wx, wy] = wk.split(',').map(Number);
+    const spots = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const x = wx + dx, y = wy + dy;
+        if (isEmptyGroundForWellWater(x, y)) spots.push({ x, y });
+      }
+    }
+    if (!spots.length) continue;
+    const p = pick(spots);
+    game.purifies[keyOf(p.x, p.y)] = 'water';
+    spawned++;
+  }
+  if (spawned > 0) log(`水井涌动，${spawned} 处空地生成了生命之水。`, 'gold');
+}
+
+function spreadCursedWells() {
+  if (!game.cursedWells || game.cursedWells.size === 0) return;
+  let spread = 0;
+  for (const wk of game.cursedWells) {
+    const [wx, wy] = wk.split(',').map(Number);
+    const radius = game.empoweredCursedWells && game.empoweredCursedWells.has(wk) ? 2 : 1;
+    for (let y = wy - radius; y <= wy + radius; y++) {
+      for (let x = wx - radius; x <= wx + radius; x++) {
+        const key = keyOf(x, y);
+        if (!inBounds(x, y) || key === wk || isExit(x, y)) continue;
+        if (game.pits.has(key) || (game.wells && game.wells.has(key)) || (game.cursedWells && game.cursedWells.has(key))) continue;
+        if (game.relics[key] || game.treasures[key] || (game.purifies && game.purifies[key])) continue;
+        game.cursedGrounds.add(key);
+        spread++;
+      }
+    }
+  }
+  if (spread > 0) log('诅咒水井涌出黑紫色污泥，周围地面被污染。', 'danger');
+}
+
+function hasRevealedWell() {
+  if (!game.wells || game.wells.size === 0) return false;
+  for (const wk of game.wells) {
+    const [x, y] = wk.split(',').map(Number);
+    if (game.revealed && game.revealed[y] && game.revealed[y][x]) return true;
+    if (game.flashlitCells && game.flashlitCells.has(wk)) return true;
+  }
+  return false;
+}
+
+function hasWellInFifteenBlock(x, y) {
+  if (!game.wells) return false;
+  const bx = Math.floor(x / 15);
+  const by = Math.floor(y / 15);
+  for (const wk of game.wells) {
+    const [wx, wy] = wk.split(',').map(Number);
+    if (Math.floor(wx / 15) === bx && Math.floor(wy / 15) === by) return true;
+  }
+  return false;
+}
+
+function canSpawnAssistAt(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) &&
+    !(x === game.player.x && y === game.player.y) &&
+    dist({ x, y }, game.player) <= 4 &&
+    game.revealed && game.revealed[y] && !game.revealed[y][x] &&
+    !(game.flashlitCells && game.flashlitCells.has(key)) &&
+    !isExit(x, y) &&
+    !game.pits.has(key) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !(game.crackedFloors && game.crackedFloors.has(key)) &&
+    !(game.quicksands && game.quicksands.has(key)) &&
+    !(game.cursedGrounds && game.cursedGrounds.has(key)) &&
+    !(game.scarabNests && game.scarabNests[key]) &&
+    !(game.trapdoors && game.trapdoors.has(key)) &&
+    !(game.jackalLairs && game.jackalLairs.has(key)) &&
+    !game.relics[key] &&
+    !game.treasures[key] &&
+    !(game.purifies && game.purifies[key]) &&
+    !monsterAt(x, y) &&
+    !(game.placedBomb && game.placedBomb.x === x && game.placedBomb.y === y);
+}
+
+function getNearbyFogAssistCells(extraCheck = null) {
+  const cells = [];
+  for (let y = game.player.y - 4; y <= game.player.y + 4; y++) {
+    for (let x = game.player.x - 4; x <= game.player.x + 4; x++) {
+      if (!canSpawnAssistAt(x, y)) continue;
+      if (extraCheck && !extraCheck(x, y)) continue;
+      cells.push({ x, y });
+    }
+  }
+  return cells;
+}
+
+function maybeSpawnCurseAid() {
+  const threshold = game.adventures <= 5 ? CURSE_MAX * 0.5 : CURSE_MAX * 0.7;
+  if (game.curse <= threshold) return;
+  const purifySpots = getNearbyFogAssistCells();
+  if (purifySpots.length) {
+    const p = pick(purifySpots);
+    game.purifies[keyOf(p.x, p.y)] = pickWeighted(PURIFY_TYPES);
+    log('古墓深处有一缕绿光回应了你的诅咒。附近迷雾中出现了净化道具。', 'gold');
+  }
+  if (!hasRevealedWell() && Math.random() < 0.5) {
+    const wellSpots = getNearbyFogAssistCells((x, y) => !hasWellInFifteenBlock(x, y));
+    if (wellSpots.length) {
+      const w = pick(wellSpots);
+      game.wells.add(keyOf(w.x, w.y));
+      log('干裂石缝中传来水声。附近迷雾中出现了一口水井。', 'gold');
+    }
+  }
+}
+
+function countWalls(x, y) {
+  const w = game.walls[y][x];
+  return Number(w.N) + Number(w.E) + Number(w.S) + Number(w.W);
+}
+
+function hasWallBetween(x, y, dx, dy) {
+  const dir = DIR_INFO.find(d => d.dx === dx && d.dy === dy);
+  return !!(dir && game.walls[y] && game.walls[y][x] && game.walls[y][x][dir.key]);
+}
+
+function buildMonsters() {
+  const targetCount = game.adventures === 1 ? 3 : Math.min(28, Math.round(game.mapSize / 4));
+  let attempts = 0;
+  while (game.monsters.length < targetCount && attempts < 500) {
+    attempts++;
+    const ghostCount = game.monsters.filter(m => m.type === 'ghost').length;
+    const type = game.adventures === 1 ? 'bat' : randomMonsterType(ghostCount);
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    if (!canPlaceMonster(x, y)) continue;
+    game.monsters.push(createMonster(type, x, y));
+  }
+}
+
+function buildSpecialMonsters() {
+  const giant = game.adventures >= 7 && Math.random() < 0.05;
+  if (giant) {
+    game.monsters = game.monsters.slice(0, Math.ceil(game.monsters.length / 2));
+    const p = findSpecialMonsterSpot({ center: true }) || { x: Math.floor(game.mapSize / 2), y: Math.floor(game.mapSize / 2) };
+    game.monsters.push(createMonster('giant_scarab', p.x, p.y));
+    log('地面开始震颤——一只山一般大的圣甲虫从沙中升起。', 'danger');
+  }
+  const scale = giant ? 0.5 : 1;
+  if (game.adventures >= 4) spawnSpecialType('scorpion', Math.ceil(Math.min(6, 1 + Math.floor((game.adventures - 4) / 2)) * scale));
+  if (game.adventures >= 5 && getPriestTargets().length) spawnSpecialType('priest', Math.ceil(Math.min(5, 1 + Math.floor((game.adventures - 5) / 2)) * scale), true);
+  if (game.adventures >= 6) spawnSpecialType('gargoyle', Math.ceil(Math.min(4, 1 + Math.floor((game.adventures - 6) / 3)) * scale), true);
+  if (game.adventures >= 6 && !giant) spawnJackalsFromLairs();
+}
+
+function findSpecialMonsterSpot(opts = {}) {
+  let candidates = [];
+  if (opts.nearRelic) candidates = getRelicNearbyCells(5);
+  if (opts.nearCursed) {
+    getPriestTargets().forEach(t => {
+      for (let y = t.y - 5; y <= t.y + 5; y++) {
+        for (let x = t.x - 5; x <= t.x + 5; x++) if (inBounds(x, y)) candidates.push({ x, y });
+      }
+    });
+  }
+  if (opts.center) {
+    const c = Math.floor(game.mapSize / 2);
+    for (let y = c - 5; y <= c + 5; y++) for (let x = c - 5; x <= c + 5; x++) if (inBounds(x, y)) candidates.push({ x, y });
+  }
+  candidates = candidates.sort(() => Math.random() - 0.5);
+  for (const p of candidates) if (canPlaceMonster(p.x, p.y)) return p;
+  for (let i = 0; i < 150; i++) {
+    const x = rng(0, game.mapSize - 1), y = rng(0, game.mapSize - 1);
+    if (canPlaceMonster(x, y)) return { x, y };
+  }
+  return null;
+}
+
+function spawnSpecialType(type, count, prefer = false) {
+  for (let i = 0; i < count; i++) {
+    const p = findSpecialMonsterSpot({
+      nearRelic: prefer && (type === 'gargoyle'),
+      nearCursed: prefer && (type === 'priest')
+    });
+    if (!p) continue;
+    game.monsters.push(createMonster(type, p.x, p.y, type === 'gargoyle' ? { petrified: true } : {}));
+  }
+}
+
+function spawnJackalsFromLairs() {
+  let pair = 1;
+  for (const lk of game.jackalLairs || []) {
+    const [lx, ly] = lk.split(',').map(Number);
+    const spots = [];
+    for (let y = ly - 1; y <= ly + 1; y++) for (let x = lx - 1; x <= lx + 1; x++) if (canPlaceMonster(x, y)) spots.push({ x, y });
+    const a = spots.shift(), b = spots.shift();
+    if (a) game.monsters.push(createMonster('jackal', a.x, a.y, { pairId: pair }));
+    if (b) game.monsters.push(createMonster('jackal', b.x, b.y, { pairId: pair }));
+    pair++;
+  }
+}
+
+function updateCurseEyeMarks() {
+  game.curseEyeMarks = new Set();
+  if (!game.curseEyeLevel || !game.monsters) return;
+  if (game.curseEyeLevel >= 3) return;
+  const count = game.curseEyeLevel === 1 ? 3 : 5;
+  const shuffled = [...game.monsters].sort(() => Math.random() - 0.5);
+  shuffled.slice(0, count).forEach(m => game.curseEyeMarks.add(m.id));
+}
+
+function canCurseEyeSeeMonster(m) {
+  if (!m || !game.curseEyeLevel) return false;
+  if (game.curseEyeLevel >= 3) return true;
+  return game.curseEyeMarks && game.curseEyeMarks.has(m.id);
+}
+
+function updatePurifyEyeMarks() {
+  game.purifyEyeMarks = new Set();
+  if (!game.purifyEyeLevel || !game.purifies) return;
+  if (game.purifyEyeLevel >= 3) return;
+  const count = game.purifyEyeLevel === 1 ? 3 : 5;
+  const keys = Object.keys(game.purifies).sort(() => Math.random() - 0.5);
+  keys.slice(0, count).forEach(k => game.purifyEyeMarks.add(k));
+}
+
+function canPurifyEyeSee(x, y) {
+  if (!game.purifyEyeLevel || !game.purifies) return false;
+  const key = keyOf(x, y);
+  if (!game.purifies[key]) return false;
+  if (game.purifyEyeLevel >= 3) return true;
+  return game.purifyEyeMarks && game.purifyEyeMarks.has(key);
+}
+
+function randomMonsterType(ghostCount = 0) {
+  const roll = Math.random();
+  if (game.adventures === 2) return roll < 0.55 ? 'bat' : 'mummy';
+  if (!hasAnyWeapon()) return roll < 0.5 ? 'bat' : 'mummy';
+  if (!hasEverHadHolyLight() && ghostCount >= 1) return roll < 0.5 ? 'bat' : 'mummy';
+  if (roll < 0.34) return 'bat';
+  if (roll < 0.72) return 'mummy';
+  return 'ghost';
+}
+
+function canPlaceMonster(x, y) {
+  const key = `${x},${y}`;
+  if (x === game.start.x && y === game.start.y) return false;
+  if (isExit(x, y)) return false;
+  if (Math.abs(x - game.start.x) <= 2 && Math.abs(y - game.start.y) <= 2) return false;
+  if (game.pits.has(key)) return false;
+  if (game.relics[key]) return false;
+  if (game.wells && game.wells.has(key)) return false;
+  if (game.cursedWells && game.cursedWells.has(key)) return false;
+  if (game.crackedFloors && game.crackedFloors.has(key)) return false;
+  if (game.quicksands && game.quicksands.has(key)) return false;
+  if (game.cursedGrounds && game.cursedGrounds.has(key)) return false;
+  if (game.scarabNests && game.scarabNests[key]) return false;
+  if (game.trapdoors && game.trapdoors.has(key)) return false;
+  if (game.jackalLairs && game.jackalLairs.has(key)) return false;
+  if (monsterAt(x, y)) return false;
+  return true;
+}
+
+function monsterAt(x, y) {
+  return game.monsters && game.monsters.find(m => m.x === x && m.y === y);
+}
+
+function getMonsterSprite(type) {
+  const map = {
+    bat: 'monster_bat.png',
+    mummy: 'monster_mummy.png',
+    ghost: 'monster_ghost.png',
+    scarab: 'monster_scarab.png',
+    priest: 'monster_priest.png',
+    scorpion: 'monster_scorpion.png',
+    gargoyle: 'monster_gargoyle.png',
+    jackal: 'monster_jackal.png',
+    giant_scarab: 'monster_giant_scarab.png',
+  };
+  return map[type] ? `assets/sprites/${map[type]}` : '';
+}
+
+function isMediumMonster(type) {
+  return ['scorpion', 'gargoyle', 'jackal', 'giant_scarab'].includes(type);
+}
+
+function getTreasureChance() {
+  if (game.adventures === 1) return 0.26;
+  return Math.min(0.82, 0.42 + game.adventures * 0.055);
+}
+
+function makeTreasure(x, y) {
+  const nearby = game.monsters.filter(m => Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= 2).length;
+  const levelBonus = Math.min(0.45, (game.adventures - 1) * 0.07);
+  const edgeBonus = game.adventures === 2 && (x <= 1 || y <= 1 || x >= game.mapSize - 2 || y >= game.mapSize - 2) ? 0.22 : 0;
+  const threatBonus = nearby * 0.16;
+  const roll = Math.random();
+  if (roll < 0.05 + edgeBonus * 0.8 + levelBonus * 0.8 + threatBonus * 0.55) return { value: 100, type: 'diamond', name: '钻石' };
+  if (roll < 0.22 + edgeBonus + levelBonus + threatBonus) return { value: 50, type: 'bag', name: '钱袋' };
+  return { value: 10, type: 'coin', name: '普通金币' };
+}
+
+function revealAround(cx, cy, r) {
+  for (let y = cy - r; y <= cy + r; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      if (inBounds(x, y)) game.revealed[y][x] = true;
+    }
+  }
+}
+
+function revealInitialArea() {
+  if (game.adventures === 1) {
+    for (let y = 0; y < game.mapSize; y++) {
+      for (let x = 0; x < game.mapSize; x++) {
+        game.revealed[y][x] = true;
+      }
+    }
+    return;
+  }
+  revealAround(game.player.x, game.player.y, game.adventures === 2 ? Math.max(2, getVisionRadius()) : getVisionRadius());
+}
+
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let y = 0; y < VIEW_SIZE; y++) {
+    for (let x = 0; x < VIEW_SIZE; x++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      c.textContent = '';
+      c.removeAttribute('data-relic-icon');
+      c.dataset.x = x;
+      c.dataset.y = y;
+      c.addEventListener('click', () => {
+        const o = getViewOrigin();
+        onCellClick(o.x + x, o.y + y);
+      });
+      c.addEventListener('mouseenter', () => {
+        const o = getViewOrigin();
+        updateAimPreview(o.x + x, o.y + y);
+      });
+      board.appendChild(c);
+    }
+  }
+}
+
+function getViewOrigin() {
+  const max = game.mapSize - VIEW_SIZE;
+  return {
+    x: Math.max(0, Math.min(max, game.player.x - Math.floor(VIEW_SIZE / 2))),
+    y: Math.max(0, Math.min(max, game.player.y - Math.floor(VIEW_SIZE / 2))),
+  };
+}
+
+function getEmergencyEscapeGuide() {
+  if (game.curse <= CURSE_MAX * 0.8 || !game.exits || !game.revealed) return null;
+  const exits = [...game.exits].map(k => {
+    const [x, y] = k.split(',').map(Number);
+    return { x, y, key: k, d: dist({ x, y }, game.player) };
+  }).filter(e => game.revealed[e.y] && game.revealed[e.y][e.x]);
+  if (!exits.length) return null;
+  exits.sort((a, b) => a.d - b.d);
+  const target = exits[0];
+  const dx = target.x - game.player.x;
+  const dy = target.y - game.player.y;
+  let arrow = '◆';
+  if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) arrow = dx > 0 ? '→' : '←';
+  else if (dy !== 0) arrow = dy > 0 ? '↓' : '↑';
+  return { target, arrow };
+}
+
+function render() {
+  const board = document.getElementById('board');
+  const boardContainer = document.getElementById('board-container');
+  boardContainer.classList.toggle('curse-warning', game.curse > 50 && game.curse <= 90);
+  boardContainer.classList.toggle('curse-critical', game.curse > 90);
+  boardContainer.classList.toggle('low-hp', game.hp === 1);
+  board.classList.toggle('low-hp', game.hp === 1);
+  const cells = board.children;
+  const origin = getViewOrigin();
+  const escapeGuide = getEmergencyEscapeGuide();
+  for (let sy = 0; sy < VIEW_SIZE; sy++) {
+    for (let sx = 0; sx < VIEW_SIZE; sx++) {
+      const x = origin.x + sx;
+      const y = origin.y + sy;
+      const c = cells[sy * VIEW_SIZE + sx];
+      c.className = 'cell';
+      c.style.removeProperty('--entity-img');
+      c.removeAttribute('data-escape-arrow');
+      if (game.aim) {
+        const k = keyOf(x, y);
+        if (game.aim.previewKeys && game.aim.previewKeys.has(k)) c.classList.add('target-line');
+        if (game.aim.impactKeys && game.aim.impactKeys.has(k)) c.classList.add('target-impact');
+        if (game.aim.invalidKey === k) c.classList.add('target-invalid');
+      }
+      if (game.teleportSelect) {
+        const k = keyOf(x, y);
+        if (game.teleportSelect.validKeys && game.teleportSelect.validKeys.has(k)) c.classList.add('target-line');
+        if (game.teleportSelect.invalidKey === k) c.classList.add('target-invalid');
+      }
+      if (!inBounds(x, y)) {
+        c.classList.add('fog');
+        continue;
+      }
+      const revealed = game.revealed[y][x];
+      const flashlit = game.flashlitCells.has(`${x},${y}`);
+      if (!revealed && !flashlit) {
+        const hiddenMonster = monsterAt(x, y);
+        if (hiddenMonster && canCurseEyeSeeMonster(hiddenMonster)) c.classList.add('monster-hint');
+        if (canPurifyEyeSee(x, y)) c.classList.add('purify-hint');
+        if (game.memoryRelicHints && game.memoryRelicHints.has(keyOf(x, y))) c.classList.add('memory-hint');
+        c.classList.add('fog');
+        continue;
+      }
+      c.classList.add('revealed');
+      if (flashlit) c.classList.add('flashlit');
+      if (game.walls[y][x].N) c.classList.add('wall-n');
+      if (game.walls[y][x].E) c.classList.add('wall-e');
+      if (game.walls[y][x].S) c.classList.add('wall-s');
+      if (game.walls[y][x].W) c.classList.add('wall-w');
+      if (game.walls[y][x].N || game.walls[y][x].E || game.walls[y][x].S || game.walls[y][x].W) unlockNotebook('terrains', 'wall');
+      if (game.exits && game.exits.has(keyOf(x, y))) {
+        c.classList.add('start');
+        unlockNotebook('terrains', 'exit');
+      }
+      if (escapeGuide && escapeGuide.target.x === x && escapeGuide.target.y === y) c.classList.add('escape-target');
+      // entities (only show monsters in revealed area)
+      if (game.attackCell === `${x},${y}`) c.classList.add('attacked');
+      if (game.player.x === x && game.player.y === y) {
+        c.classList.add('player');
+        if (escapeGuide) {
+          c.classList.add('escape-arrow');
+          c.setAttribute('data-escape-arrow', escapeGuide.arrow);
+        }
+      }
+      else if (monsterAt(x, y)) {
+        const m = monsterAt(x, y);
+        unlockNotebook('monsters', m.type);
+        c.classList.add('monster', MONSTER_TYPES[m.type].className);
+        c.classList.add('has-entity-img');
+        if (isMediumMonster(m.type)) c.classList.add('entity-medium');
+        c.style.setProperty('--entity-img', `url("${getMonsterSprite(m.type)}")`);
+        if (m.petrified) c.classList.add('petrified');
+        if (m.enragedTurns > 0) c.classList.add('enraged');
+        if (m.startled) c.classList.add('waking');
+        else if (game.turn < AWAKEN_TURN - 1) c.classList.add('sleeping');
+        else if (game.turn === AWAKEN_TURN - 1) c.classList.add('waking');
+      }
+      if (game.cursedWells && game.cursedWells.has(`${x},${y}`)) { c.classList.add('cursed-well'); unlockNotebook('terrains', 'cursed_well'); }
+      else if (game.scarabNests && game.scarabNests[`${x},${y}`] && !game.scarabNests[`${x},${y}`].exhausted) { c.classList.add('scarab-nest'); unlockNotebook('terrains', 'scarab_nest'); }
+      else if (game.trapdoors && game.trapdoors.has(`${x},${y}`)) { c.classList.add('trapdoor'); unlockNotebook('terrains', 'trapdoor'); }
+      else if (game.jackalLairs && game.jackalLairs.has(`${x},${y}`)) { c.classList.add('jackal-lair'); unlockNotebook('terrains', 'jackal_lair'); }
+      else if (game.cursedGrounds && game.cursedGrounds.has(`${x},${y}`)) { c.classList.add('cursed-ground'); unlockNotebook('terrains', 'cursed_ground'); }
+      else if (game.quicksands && game.quicksands.has(`${x},${y}`)) { c.classList.add('quicksand'); unlockNotebook('terrains', 'quicksand'); }
+      else if (game.pits.has(`${x},${y}`)) { c.classList.add('pit'); unlockNotebook('terrains', 'pit'); }
+      else if (game.crackedFloors && game.crackedFloors.has(`${x},${y}`)) { c.classList.add('cracked'); unlockNotebook('terrains', 'cracked'); }
+      else if (game.relics[`${x},${y}`]) {
+        const relic = RELIC_MAP[game.relics[`${x},${y}`]];
+        unlockNotebook('relics', game.relics[`${x},${y}`]);
+        c.classList.add('relic');
+        c.setAttribute('data-relic-icon', relic ? relic.icon : '📜');
+      }
+      else if (game.wells && game.wells.has(`${x},${y}`)) { c.classList.add('well'); unlockNotebook('terrains', 'well'); }
+      else if (game.placedBomb && game.placedBomb.x === x && game.placedBomb.y === y) c.classList.add('bomb');
+      else if (game.purifies && game.purifies[`${x},${y}`]) {
+        const p = game.purifies[`${x},${y}`];
+        c.classList.add('purify', PURIFY_TYPES[p].cssClass);
+      }
+      else if (game.treasures[`${x},${y}`]) {
+        c.classList.add('treasure', game.treasures[`${x},${y}`].type);
+      }
+    }
+  }
+  document.getElementById('turn').textContent = game.turn;
+  document.getElementById('adventure').textContent = game.adventures;
+  const hpEl = document.getElementById('hp');
+  hpEl.textContent = '♥'.repeat(Math.max(0, game.hp)) + '♡'.repeat(Math.max(0, getMaxHp() - game.hp));
+  hpEl.classList.toggle('hp-low', game.hp === 1);
+  document.getElementById('gold').textContent = game.gold;
+  document.getElementById('relics').textContent = `📜 ${game.relicsCollected} / ${TOTAL_RELICS}`;
+  const curseEl = document.getElementById('curse-text');
+  if (curseEl) {
+    curseEl.textContent = `${game.curse} / ${CURSE_MAX}`;
+    const ratio = game.curse / CURSE_MAX;
+    curseEl.style.color = ratio < 0.4 ? '#ff7ad9' : ratio < 0.75 ? '#ff5577' : '#ff2a2a';
+    curseEl.classList.toggle('curse-warning', game.curse > 50 && game.curse <= 90);
+    curseEl.classList.toggle('curse-critical', game.curse > 90);
+  }
+  const bar = document.getElementById('curse-bar');
+  if (bar) {
+    bar.style.width = Math.min(100, (game.curse / CURSE_MAX) * 100) + '%';
+    bar.classList.toggle('curse-warning', game.curse > 50 && game.curse <= 90);
+    bar.classList.toggle('curse-critical', game.curse > 90);
+    if (bar.parentElement) {
+      bar.parentElement.classList.toggle('curse-warning', game.curse > 50 && game.curse <= 90);
+      bar.parentElement.classList.toggle('curse-critical', game.curse > 90);
+    }
+  }
+  document.getElementById('phase').textContent = game.turn < AWAKEN_TURN ? '沉睡期' : '苏醒期';
+  document.getElementById('phase').style.color = game.turn < AWAKEN_TURN ? '#a08660' : '#d44';
+  renderItemGrid();
+  updateBgmState();
+}
+
+function onCellClick(x, y) {
+  ensureAudioStarted();
+  if (game.over || game.shopOpen || game.modalOpen) return;
+  if (game.teleportSelect) {
+    confirmScrollTeleport(x, y);
+    return;
+  }
+  if (game.aim) {
+    updateAimPreview(x, y);
+    confirmAim();
+    return;
+  }
+  const dx = x - game.player.x;
+  const dy = y - game.player.y;
+  if (Math.abs(dx) + Math.abs(dy) !== 1) {
+    log('只能点击上下左右相邻一格移动。');
+    return;
+  }
+  tryMove(dx, dy);
+}
+
+function tryMove(dx, dy) {
+  if (game.over || game.shopOpen || game.modalOpen) return;
+  const oldKey = keyOf(game.player.x, game.player.y);
+  const nx = game.player.x + dx, ny = game.player.y + dy;
+  const newKey = keyOf(nx, ny);
+  if (!inBounds(nx, ny)) return;
+  if (hasWallBetween(game.player.x, game.player.y, dx, dy)) {
+    log('墙壁挡住了这个方向。', 'danger');
+    render();
+    return;
+  }
+  if (game.pits.has(`${nx},${ny}`)) {
+    log('前方是坑位，无法直接移动上去。', 'danger');
+    render();
+    return;
+  }
+  if (game.wells && game.wells.has(`${nx},${ny}`)) {
+    log('水井挡住了去路。', 'danger');
+    render();
+    return;
+  }
+  if (game.cursedWells && game.cursedWells.has(`${nx},${ny}`)) {
+    log('诅咒水井挡住了去路，井口涌出黑紫色雾气。', 'danger');
+    render();
+    return;
+  }
+  const standingMonster = monsterAt(nx, ny);
+  if (standingMonster) {
+    if (!game.hasDagger) {
+      log('我没有武器，无法接近。', 'danger');
+      return;
+    }
+    playerAttack(standingMonster);
+    return;
+  }
+  game.player.x = nx;
+  game.player.y = ny;
+  revealAround(nx, ny, getVisionRadius());
+  if (game.pendingCrackCollapse && game.pendingCrackCollapse === oldKey) {
+    game.crackedFloors.delete(oldKey);
+    game.pits.add(oldKey);
+    game.pendingCrackCollapse = '';
+    log('身后的破碎地面崩塌成了坑。', 'danger');
+  }
+  if (game.crackedFloors && game.crackedFloors.has(newKey)) {
+    game.pendingCrackCollapse = newKey;
+    log('脚下的破碎地面发出断裂声，离开后它会塌陷。', 'danger');
+  }
+  if (game.cursedGrounds && game.cursedGrounds.has(newKey)) {
+    increaseCurse(5);
+    log('你踏入诅咒之地，诅咒值 +5。', 'danger');
+  }
+  if (game.quicksands && game.quicksands.has(newKey)) {
+    game.hp--;
+    log('你踩入流沙陷阱，砂砾撕扯着双腿，生命 -1。', 'danger');
+  }
+  triggerScarabNest(nx, ny);
+  if (triggerTrapdoor(nx, ny, false)) return;
+  const curseGain = getMoveCurseGain();
+  if (curseGain > 0) increaseCurse(curseGain);
+  if (hasRelic('sandstorm_ring') && Math.random() < 0.1) {
+    game.hp--;
+    log('沙暴之环引发流沙陷阱，你原地损失1点生命。', 'danger');
+  }
+  collectTileAt(nx, ny);
+  endTurn();
+  promptEscapeAtStart();
+}
+
+function showRelicPopup(relic) {
+  game.modalOpen = true;
+  const curseLine = relic.cursed ? '<p style="color:#ff70ff">这是一件诅咒遗物。</p>' : '';
+  showModal(`
+    <h2>★ ${relic.icon} ${relic.name} ★</h2>
+    <div class="legend-text">“${relic.inscription}”</div>
+    <p>${relic.desc}</p>
+    ${curseLine}
+    <p class="gold-large">遗物 ${game.relicsCollected} / ${TOTAL_RELICS}</p>
+    <button class="btn" onclick="closeLegend()">收 起 遗 物</button>
+  `);
+  const wrapper = document.getElementById('game-wrapper');
+  wrapper.classList.remove('epic-flash');
+  void wrapper.offsetWidth;
+  wrapper.classList.add('epic-flash');
+}
+window.closeLegend = function() {
+  game.modalOpen = false;
+  closeModal();
+  if (game.pendingPharaohSummon) {
+    game.pendingPharaohSummon = false;
+    showPharaohSummon();
+  }
+};
+
+function showOpeningStory() {
+  game.modalOpen = true;
+  showModal(`
+    <h2>☥ 塞 特 内 赫 特 之 墓 ☥</h2>
+    <div class="story-text">
+      1926年，埃及。你是一位受雇于"皇家地理学会"的宝藏猎人，深入法老·塞特内赫特的诅咒之墓。<br><br>
+      任何进入墓穴的人，都会逐渐被诅咒侵蚀。你的皮肤会开始龟裂，你的意识会开始模糊，你的心脏会越跳越慢……<br><br>
+      你必须赶在诅咒彻底吞噬你之前，找到尽可能多的宝藏，活着离开。
+    </div>
+    <button class="btn" onclick="closeOpening()">举 起 火 把</button>
+  `);
+}
+window.closeOpening = function() {
+  game.modalOpen = false;
+  closeModal();
+};
+
+function showPharaohSummon() {
+  game.modalOpen = true;
+  showModal(`
+    <h2>📜 第十三件遗物已被拾取</h2>
+    <div class="story-text">
+      “你集齐了法老·塞特内赫特的所有灵魂碎片。”<br><br>
+      整座墓穴开始震颤。你听到一个声音从地底深处传来，仿佛来自死亡本身。<br><br>
+      『集齐我者，将直面我。』
+    </div>
+    <button class="btn" onclick="closeModal();openShop(true,true)">进入商店整备</button>
+  `);
+  const wrapper = document.getElementById('game-wrapper');
+  wrapper.classList.remove('screen-shake');
+  void wrapper.offsetWidth;
+  wrapper.classList.add('screen-shake');
+}
+
+window.startPharaohBattle = function() {
+  game.shopOpen = false;
+  game.modalOpen = true;
+  game.boss = {
+    turn: 1,
+    hp: 10,
+    player: { x: 4, y: 8 },
+    pharaoh: { x: 4, y: 0 },
+    guards: [],
+    extraHits: 0,
+    log: ['法老·塞特内赫特从王座上缓缓起身。“你来了。现在，把它们还给我。”']
+  };
+  renderPharaohBattle();
+};
+
+function bossCell(x, y) {
+  const b = game.boss;
+  const guard = b.guards.find(g => g.x === x && g.y === y);
+  if (b.player.x === x && b.player.y === y) return '<img src="assets/sprites/explorer.png" style="width:26px;height:26px;image-rendering:pixelated">';
+  if (b.pharaoh.x === x && b.pharaoh.y === y) return '<img src="assets/sprites/boss_pharaoh.png" style="width:56px;height:84px;image-rendering:pixelated;position:absolute;bottom:0;left:50%;transform:translateX(-50%);z-index:5;filter:drop-shadow(0 0 6px #ffd966)">';
+  if (guard) return '<img src="assets/sprites/monster_mummy.png" style="width:26px;height:26px;image-rendering:pixelated">';
+  if ((x === 0 || x === 8) && (y === 0 || y === 8)) return '<img src="assets/sprites/item_holy.png" style="width:24px;height:24px;image-rendering:pixelated">';
+  return '·';
+}
+
+function renderBossGrid() {
+  let html = '<div style="display:grid;grid-template-columns:repeat(9,28px);gap:3px;justify-content:center;margin:10px 0;overflow:visible">';
+  for (let y = 0; y < 9; y++) {
+    for (let x = 0; x < 9; x++) {
+      html += `<div style="width:28px;height:28px;border:1px solid #6b4a26;display:flex;align-items:center;justify-content:center;background:#1a0a04 url('assets/floor_tile.png') center/cover;position:relative;overflow:visible">${bossCell(x,y)}</div>`;
+    }
+  }
+  return html + '</div>';
+}
+
+function renderPharaohBattle() {
+  const b = game.boss;
+  const logLines = b.log.slice(-4).map(t => `<p>${t}</p>`).join('');
+  showModal(`
+    <h2>法老之墓 · 最终回响</h2>
+    <p>法老生命：<span style="color:#ffd966">${b.hp}/10</span>　你的生命：<span style="color:#d44">${game.hp}/${getMaxHp()}</span>　诅咒：<span style="color:#ff7ad9">${game.curse}/${CURSE_MAX}</span></p>
+    ${renderBossGrid()}
+    <div class="story-text" style="font-size:12px">${logLines}</div>
+    <div class="btn-row">
+      <button class="btn" onclick="bossMove(0,-1)">上</button>
+      <button class="btn" onclick="bossMove(0,1)">下</button>
+      <button class="btn" onclick="bossMove(-1,0)">左</button>
+      <button class="btn" onclick="bossMove(1,0)">右</button>
+    </div>
+    <button class="btn" onclick="bossAttack()">攻击法老</button>
+    <button class="btn" onclick="bossHoly()">使用圣光术</button>
+  `);
+}
+
+window.bossMove = function(dx, dy) {
+  const b = game.boss;
+  const nx = Math.max(0, Math.min(8, b.player.x + dx));
+  const ny = Math.max(0, Math.min(8, b.player.y + dy));
+  if (b.guards.some(g => g.x === nx && g.y === ny)) {
+    const g = b.guards.find(g => g.x === nx && g.y === ny);
+    g.hp--;
+    b.log.push('你击倒了一名木乃伊守卫，获得一次额外攻击机会。');
+    if (g.hp <= 0) { b.guards = b.guards.filter(x => x !== g); b.extraHits++; }
+  } else {
+    b.player = { x: nx, y: ny };
+  }
+  bossEndTurn();
+};
+
+window.bossAttack = function() {
+  const b = game.boss;
+  if (dist(b.player, b.pharaoh) === 1 || b.extraHits > 0) {
+    const dmg = b.extraHits > 0 ? 1 : (hasRelic('bronze_scepter') ? 2 : 1);
+    if (b.extraHits > 0) b.extraHits--;
+    b.hp -= dmg;
+    b.log.push('你的攻击击中了法老的胸膛，一道裂缝出现在他的石质皮肤上。');
+    if (bossCheckWin()) return;
+    bossEndTurn();
+  } else {
+    b.log.push('你距离法老太远，无法攻击。');
+    renderPharaohBattle();
+  }
+};
+
+window.bossHoly = function() {
+  const b = game.boss;
+  if (game.holyLights <= 0) { b.log.push('你没有圣光术。'); renderPharaohBattle(); return; }
+  if (Math.max(Math.abs(b.player.x - b.pharaoh.x), Math.abs(b.player.y - b.pharaoh.y)) > 1) {
+    b.log.push('圣光术必须在法老周围3×3范围内释放。');
+    renderPharaohBattle();
+    return;
+  }
+  game.holyLights--;
+  b.hp -= 3;
+  b.log.push('圣光击穿法老的王冠，金色裂缝爬满他的胸膛。');
+  if (bossCheckWin()) return;
+  bossEndTurn();
+};
+
+function bossEndTurn() {
+  const b = game.boss;
+  b.turn++;
+  if (b.turn % 2 === 0) {
+    b.log.push('法老释放诅咒波，席卷你所在的行与列。');
+    if (b.player.x === b.pharaoh.x || b.player.y === b.pharaoh.y) { game.hp--; increaseCurse(10); }
+  }
+  if (b.turn % 3 === 0) {
+    b.log.push('法老召唤2只精英木乃伊守卫。');
+    for (let i = 0; i < 2; i++) {
+      let gx = rng(1, 7), gy = rng(1, 7), guardAttempts = 0;
+      while ((gx === b.player.x && gy === b.player.y || gx === b.pharaoh.x && gy === b.pharaoh.y || b.guards.some(g => g.x === gx && g.y === gy)) && guardAttempts++ < 20) {
+        gx = rng(1, 7); gy = rng(1, 7);
+      }
+      b.guards.push({ x: gx, y: gy, hp: 2 });
+    }
+  }
+  if (b.turn % 4 === 0) {
+    const sheltered = (b.player.x === 0 || b.player.x === 8) && (b.player.y === 0 || b.player.y === 8);
+    b.log.push('法老的十三只眼睛锁定了你。');
+    if (!sheltered) { game.hp -= 2; increaseCurse(15); }
+  }
+  b.guards.forEach(g => {
+    if (dist(g, b.player) === 1) game.hp--;
+    else if (Math.abs(b.player.x - g.x) > Math.abs(b.player.y - g.y)) g.x += Math.sign(b.player.x - g.x);
+    else g.y += Math.sign(b.player.y - g.y);
+  });
+  if (game.hp <= 0 || game.curse >= CURSE_MAX) { bossLose(); return; }
+  renderPharaohBattle();
+}
+
+function bossCheckWin() {
+  if (game.boss.hp > 0) {
+    if (game.boss.hp <= 3) game.boss.log.push('法老的王座开始碎裂，他的声音变得支离破碎。');
+    return false;
+  }
+  game.gold += 10000;
+  game.adventureGold += 10000;
+  showGoldGain(10000);
+  game.pharaohConquered = true;
+  game.collectedRelics = [];
+  game.relicsCollected = 0;
+  game.modalOpen = true;
+  showModal(`
+    <h2>法老征服者</h2>
+    <div class="story-text">法老的十三只眼睛同时闭合。他的身体化作金色沙尘消散，只剩一枚刻着“征服者”的金色徽章落在你手中。</div>
+    <p class="gold-large">+10000 金币　生命上限 +2</p>
+    <p>商店已解锁特殊商品“法老之印”。</p>
+    <button class="btn" onclick="closeModal();newGame(false)">继续冒险</button>
+  `);
+  return true;
+}
+
+function bossLose() {
+  game.collectedRelics = [];
+  game.relicsCollected = 0;
+  game.gold = 0;
+  game.modalOpen = true;
+  showModal(`
+    <h2 style="color:#d44">法老的审判</h2>
+    <p>你倒在法老之墓中，所有遗物都被夺回，金币也散落于黑暗。</p>
+    <p>“法老之墓”的入口仍会保留，等待你重新挑战。</p>
+    <button class="btn" onclick="closeModal();newGame(true)">重新开始</button>
+  `);
+}
+
+function showEndlessStory() {
+  game.modalOpen = true;
+  showModal(`
+    <h2>∞ 无 尽 旅 途 ∞</h2>
+    <div class="story-text">
+      你以为自己已经摸清了墓穴的边界。可第十次踏入黑暗时，墙壁开始后退，通道在远方自行生长。<br><br>
+      塞特内赫特的陵墓不再像一座墓，而像一片永远不会结束的沙海。出口仍会出现，但没有人知道它们通向生路，还是下一段更深的诅咒。
+    </div>
+    <button class="btn" onclick="closeOpening()">继续前进</button>
+  `);
+}
+
+function endTurn() {
+  game.turn++;
+  if (game.poisonTurns > 0) {
+    game.poisonTurns--;
+    increaseCurse(2);
+    log('毒素在血液中扩散：诅咒值 +2。', 'danger');
+  }
+  game.monsters.forEach(m => {
+    if (m.enragedTurns > 0) m.enragedTurns--;
+  });
+  if (game.turn % 5 === 0) {
+    spawnWellWater();
+    spreadCursedWells();
+  }
+  // bomb detonation
+  if (game.placedBomb) detonateBomb();
+  // monster phase
+  if (game.turn >= AWAKEN_TURN) {
+    if (game.turn === AWAKEN_TURN) log('！沉睡的怪物苏醒了！', 'danger');
+    moveMonsters();
+    if (game.over) return;
+  }
+  // win/lose checks
+  checkLose();
+  if (game.over) return;
+  maybeSpawnCurseAid();
+  // curse fully consumed -> death
+  if (game.curse >= CURSE_MAX) {
+    if (isExit(game.player.x, game.player.y) && game.turn > 2) {
+      render();
+      return;
+    }
+    gameOver('诅咒彻底吞噬了你，你的心脏停止了跳动……如果不是这么贪婪，事情会不会有所不同？');
+    return;
+  }
+  render();
+}
+
+function promptEscapeAtStart() {
+  if (game.over || game.shopOpen || game.modalOpen) return;
+  if (!isExit(game.player.x, game.player.y)) return;
+  if (game.turn <= 2) return;
+  setTimeout(() => {
+    if (game.over || game.shopOpen || game.modalOpen) return;
+    if (!isExit(game.player.x, game.player.y)) return;
+    showEscapePrompt();
+  }, 80);
+}
+
+function showEscapePrompt() {
+  game.modalOpen = true;
+  showModal(`
+    <h2>⚱ 撤 离 抉 择 ⚱</h2>
+    <p>你已回到初始位置。前方是阳光，身后是诅咒。</p>
+    <div class="escape-summary">
+      本次冒险金币：<span>${game.adventureGold}</span><br>
+      累计金币：<span>${game.gold}</span><br>
+      当前诅咒：<span style="color:#ff7ad9">${game.curse} / ${CURSE_MAX}</span><br>
+      遗物拾取：<span>${game.relicsCollected} / ${TOTAL_RELICS}</span>
+    </div>
+    <p style="font-size:12px;color:#a08660">是否离开并结算本次冒险？</p>
+    <div class="btn-row">
+      <button class="btn" onclick="confirmEscape()">是，撤离</button>
+      <button class="btn" onclick="cancelEscape()">否，继续</button>
+    </div>
+  `);
+}
+
+window.confirmEscape = function() {
+  game.modalOpen = false;
+  closeModal();
+  victory(true);
+};
+window.cancelEscape = function() {
+  game.modalOpen = false;
+  closeModal();
+  log('你决定暂不撤离，继续探索遗迹。');
+  if (game.curse >= CURSE_MAX) {
+    gameOver('你拒绝了唯一的生路，诅咒立刻吞噬了你。如果不是这么贪婪，事情会不会有所不同？');
+    return;
+  }
+  render();
+};
+
+function moveMonsters() {
+  for (const m of game.monsters) {
+    const info = MONSTER_TYPES[m.type];
+    if ((game.turn - AWAKEN_TURN) % info.moveEvery !== 0) continue;
+    moveMonsterToward(m, 1);
+    if (game.over) return;
+  }
+}
+
+function moveMonsterToward(m, steps) {
+  const info = MONSTER_TYPES[m.type];
+  if (m.type === 'gargoyle' && updateGargoyleState(m)) return;
+  if (m.type === 'priest' && movePriest(m)) return;
+  if (m.type === 'scarab' && moveScarab(m)) return;
+  const seesPlayer = shouldMonsterChase(m);
+  if (shouldEarlyEdgeRelief(m)) {
+    moveMonsterAwayFromPlayer(m);
+    log(`${info.name}在狭窄边缘退开了一步，你终于有机会脱身。`, 'important');
+    return;
+  }
+  if (seesPlayer && shouldMonsterBlunder()) {
+    randomMonsterWander(m);
+    return;
+  }
+  if (seesPlayer && canMonsterStepTo(m, game.player.x, game.player.y)) {
+    attackPlayer(m);
+    return;
+  }
+  for (let s = 0; s < steps; s++) {
+    let moves = getMonsterMoves(m);
+    if (seesPlayer) {
+      if (moves.length === 0) continue;
+      moves.sort((a, b) => dist(a, game.player) - dist(b, game.player));
+      m.x = moves[0].x;
+      m.y = moves[0].y;
+      afterMonsterMove(m);
+    } else {
+      const choice = pick([...moves, { x: m.x, y: m.y }]);
+      m.x = choice.x;
+      m.y = choice.y;
+      afterMonsterMove(m);
+    }
+  }
+}
+
+function afterMonsterMove(m) {
+  if (m.type === 'giant_scarab') {
+    game.cursedGrounds.add(keyOf(m.x, m.y));
+    if (game.turn % 3 === 0) {
+      let changed = 0;
+      for (let y = m.y - 2; y <= m.y + 2; y++) {
+        for (let x = m.x - 2; x <= m.x + 2; x++) {
+          const key = keyOf(x, y);
+          if (!inBounds(x, y) || isExit(x, y) || game.pits.has(key) || (game.wells && game.wells.has(key))) continue;
+          game.quicksands.add(key);
+          changed++;
+        }
+      }
+      if (changed) log('巨型圣甲虫释放虫群冲击波，周围地面塌成流沙。', 'danger');
+    }
+  }
+}
+
+function updateGargoyleState(m) {
+  if (m.petrified && Math.max(Math.abs(m.x - game.player.x), Math.abs(m.y - game.player.y)) <= 2) {
+    m.petrified = false;
+    log('你身后的石像突然睁开了眼睛——它的翅膀开始展开。', 'danger');
+    return true;
+  }
+  if (!m.petrified && Math.max(Math.abs(m.x - game.player.x), Math.abs(m.y - game.player.y)) > 3) {
+    m.petrified = true;
+    log('石像鬼失去目标，重新凝固为沉默的石像。');
+    return true;
+  }
+  return m.petrified;
+}
+
+function moveScarab(m) {
+  const purifyKeys = Object.keys(game.purifies || {});
+  if (!purifyKeys.length) return false;
+  const targets = purifyKeys.map(k => {
+    const [x, y] = k.split(',').map(Number);
+    return { x, y, key: k, d: dist(m, { x, y }) };
+  }).sort((a, b) => a.d - b.d);
+  const target = targets[0];
+  if (dist(m, target) === 1 && canMonsterStepTo(m, target.x, target.y)) {
+    m.x = target.x;
+    m.y = target.y;
+    delete game.purifies[target.key];
+    log('圣甲虫啃碎了一件净化道具。', 'danger');
+    return true;
+  }
+  const moves = getMonsterMoves(m).sort((a, b) => dist(a, target) - dist(b, target));
+  if (moves.length) {
+    m.x = moves[0].x;
+    m.y = moves[0].y;
+  }
+  return true;
+}
+
+function getPriestTargets() {
+  const targets = [];
+  (game.cursedWells ? [...game.cursedWells] : []).forEach(k => {
+    const [x, y] = k.split(',').map(Number);
+    targets.push({ x, y, key: k, type: 'cursedWell' });
+  });
+  return targets;
+}
+
+function movePriest(m) {
+  const targets = getPriestTargets();
+  if (!targets.length) {
+    teleportMonsterAcrossMap(m);
+    return true;
+  }
+  const target = targets.sort((a, b) => dist(m, a) - dist(m, b))[0];
+  if (dist(m, target) <= 1) {
+    game.empoweredCursedWells = game.empoweredCursedWells || new Set();
+    game.empoweredCursedWells.add(target.key);
+    log('祭司魂魄在诅咒水井旁祈祷，污染范围扩大。', 'danger');
+    return true;
+  }
+  const moves = getMonsterMoves(m).sort((a, b) => dist(a, target) - dist(b, target));
+  if (moves.length) {
+    m.x = moves[0].x;
+    m.y = moves[0].y;
+  }
+  return true;
+}
+
+function teleportMonsterAcrossMap(m) {
+  for (let i = 0; i < 80; i++) {
+    const x = rng(0, game.mapSize - 1);
+    const y = rng(0, game.mapSize - 1);
+    if (canMonsterStandAt(m, x, y) && dist({ x, y }, m) > game.mapSize / 3) {
+      m.x = x;
+      m.y = y;
+      return;
+    }
+  }
+}
+
+function getMonsterBlunderChance() {
+  if (game.adventures <= 5) return 0.2;
+  if (game.adventures <= 10) return 0.1;
+  return 0;
+}
+
+function shouldMonsterBlunder() {
+  const chance = getMonsterBlunderChance();
+  return chance > 0 && Math.random() < chance;
+}
+
+function randomMonsterWander(m) {
+  const moves = getMonsterMoves(m);
+  if (!moves.length) return;
+  const choice = pick(moves);
+  m.x = choice.x;
+  m.y = choice.y;
+}
+
+function isPlayerOnMapEdge() {
+  return game.player.x === 0 ||
+    game.player.y === 0 ||
+    game.player.x === game.mapSize - 1 ||
+    game.player.y === game.mapSize - 1;
+}
+
+function shouldEarlyEdgeRelief(m) {
+  if (game.adventures > 5) return false;
+  if (hasAnyWeapon()) return false;
+  if (!isPlayerOnMapEdge()) return false;
+  return dist(m, game.player) === 1;
+}
+
+function moveMonsterAwayFromPlayer(m) {
+  const moves = getMonsterMoves(m);
+  if (!moves.length) return;
+  moves.sort((a, b) => dist(b, game.player) - dist(a, game.player));
+  m.x = moves[0].x;
+  m.y = moves[0].y;
+}
+
+function getMonsterMoves(m) {
+  return [
+    { x: m.x + 1, y: m.y },
+    { x: m.x - 1, y: m.y },
+    { x: m.x, y: m.y + 1 },
+    { x: m.x, y: m.y - 1 },
+  ].filter(p => canMonsterStepTo(m, p.x, p.y) && !(p.x === game.player.x && p.y === game.player.y));
+}
+
+function shouldMonsterChase(m) {
+  const inLocalRange = Math.abs(game.player.x - m.x) <= 2 && Math.abs(game.player.y - m.y) <= 2;
+  return (inLocalRange && hasClearWallPath(m, game.player)) || hasStraightLineSight(m, game.player);
+}
+
+function hasStraightLineSight(a, b) {
+  if (a.x !== b.x && a.y !== b.y) return false;
+  if (a.x === b.x) {
+    const step = Math.sign(b.y - a.y);
+    for (let y = a.y; y !== b.y; y += step) {
+      if (hasWallBetween(a.x, y, 0, step)) return false;
+    }
+    return true;
+  }
+  const step = Math.sign(b.x - a.x);
+  for (let x = a.x; x !== b.x; x += step) {
+    if (hasWallBetween(x, a.y, step, 0)) return false;
+  }
+  return true;
+}
+
+function hasClearWallPath(a, b) {
+  const queue = [{ x: a.x, y: a.y }];
+  const seen = new Set([keyOf(a.x, a.y)]);
+  const maxSteps = Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + 4;
+  let head = 0;
+  while (head < queue.length) {
+    const cur = queue[head++];
+    if (cur.x === b.x && cur.y === b.y) return true;
+    if (dist(cur, a) > maxSteps) continue;
+    for (const dir of DIR_INFO) {
+      const nx = cur.x + dir.dx;
+      const ny = cur.y + dir.dy;
+      const key = keyOf(nx, ny);
+      if (!inBounds(nx, ny) || seen.has(key)) continue;
+      if (hasWallBetween(cur.x, cur.y, dir.dx, dir.dy)) continue;
+      seen.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return false;
+}
+
+function canMonsterStandAt(m, x, y) {
+  if (!inBounds(x, y)) return false;
+  if (isExit(x, y)) return false;
+  if (!MONSTER_TYPES[m.type].phase && game.pits.has(`${x},${y}`)) return false;
+  if (game.wells && game.wells.has(`${x},${y}`)) return false;
+  if (game.cursedWells && game.cursedWells.has(`${x},${y}`)) return false;
+  if (game.quicksands && game.quicksands.has(`${x},${y}`)) return false;
+  if (isOccupied(x, y, m)) return false;
+  if (x === game.player.x && y === game.player.y) return false;
+  return true;
+}
+
+function canMonsterStepTo(m, x, y) {
+  if (!inBounds(x, y)) return false;
+  const info = MONSTER_TYPES[m.type];
+  const dx = x - m.x;
+  const dy = y - m.y;
+  if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
+  if (!info.phase && hasWallBetween(m.x, m.y, dx, dy)) return false;
+  if (!info.phase && game.pits.has(`${x},${y}`)) return false;
+  if (game.wells && game.wells.has(`${x},${y}`)) return false;
+  if (game.cursedWells && game.cursedWells.has(`${x},${y}`)) return false;
+  if (game.quicksands && game.quicksands.has(`${x},${y}`)) return false;
+  if (isExit(x, y)) return false;
+  if (isOccupied(x, y, m)) return false;
+  return true;
+}
+
+function attackPlayer(m) {
+  const info = MONSTER_TYPES[m.type];
+  if (info.attack <= 0) return;
+  const damage = m.enragedTurns > 0 ? info.attack * 2 : info.attack;
+  game.attackCell = `${game.player.x},${game.player.y}`;
+  game.hp -= damage;
+  log(`${info.name}扑向你，造成 ${damage} 点伤害！`, 'danger');
+  if (m.type === 'scorpion') {
+    game.poisonTurns = 3;
+    log('巨蝎毒针刺入皮肤：接下来3回合每回合额外 +2 诅咒。', 'danger');
+  }
+  render();
+  setTimeout(() => {
+    if (game.attackCell) {
+      game.attackCell = null;
+      render();
+    }
+  }, 450);
+  if (game.hp <= 0) gameOver(`${info.name}击倒了你。冒险次数和金币全部清零。`);
+}
+
+function reduceCurseForKill(m) {
+  if (handleSpecialMonsterDrop(m)) return;
+  const reduce = m.type === 'bat' ? 10 : m.type === 'mummy' ? 20 : 0;
+  if (reduce <= 0) return;
+  game.curse = Math.max(0, game.curse - reduce);
+  log(`击杀${MONSTER_TYPES[m.type].name}，诅咒值 -${reduce}。`, 'gold');
+  playPurifyFeedback(reduce);
+}
+
+function handleSpecialMonsterDrop(m) {
+  const table = {
+    scarab: { goldP: 0.60, gold: [5, 15], curseP: 0.30, curse: 3, itemP: 0.10, item: 'scarab' },
+    scorpion: { goldP: 0.15, gold: [10, 20], curseP: 0.75, curse: 8, itemP: 0.10, item: 'antidote' },
+    priest: { goldP: 0.10, gold: [15, 30], curseP: 0.80, curse: 12, itemP: 0.10, item: 'purifyeye' },
+    gargoyle: { goldP: 0.15, gold: [20, 40], curseP: 0.75, curse: 10, itemP: 0.10, item: 'diamond' },
+    jackal: { goldP: 0.60, gold: [15, 30], curseP: 0.30, curse: 5, itemP: 0.10, item: 'water' },
+    giant_scarab: { goldP: 1, gold: [100, 200], curseP: 1, curse: 20, itemP: 0.50, item: 'relic' },
+  };
+  const d = table[m.type];
+  if (!d) return false;
+  if (m.type === 'giant_scarab') {
+    const gold = rng(d.gold[0], d.gold[1]);
+    game.gold += gold;
+    game.adventureGold += gold;
+    showGoldGain(gold);
+    game.curse = Math.max(0, game.curse - d.curse);
+    log(`击杀巨型圣甲虫，获得 ${gold} 金币，诅咒值 -${d.curse}。`, 'gold');
+    playPurifyFeedback(d.curse);
+    if (Math.random() < d.itemP) handleMonsterItemDrop('relic', m);
+    return true;
+  }
+  const roll = Math.random();
+  if (roll < d.goldP) {
+    const gold = rng(d.gold[0], d.gold[1]);
+    game.gold += gold;
+    game.adventureGold += gold;
+    showGoldGain(gold);
+    log(`击杀${MONSTER_TYPES[m.type].name}，掉落 ${gold} 金币。`, 'gold');
+  } else if (roll < d.goldP + d.curseP) {
+    game.curse = Math.max(0, game.curse - d.curse);
+    log(`击杀${MONSTER_TYPES[m.type].name}，诅咒值 -${d.curse}。`, 'gold');
+    playPurifyFeedback(d.curse);
+  } else if (roll < d.goldP + d.curseP + d.itemP) {
+    handleMonsterItemDrop(d.item, m);
+  }
+  return true;
+}
+
+function handleMonsterItemDrop(item, m) {
+  if (item === 'scarab') {
+    game.purifies[keyOf(m.x, m.y)] = 'scarab';
+    showCenterFloat('+圣甲虫护符', 'item');
+    log('圣甲虫碎壳中露出一枚圣甲虫护符。', 'gold');
+  } else if (item === 'antidote') {
+    game.antidotes++;
+    showCenterFloat('+解毒剂', 'item');
+    log('巨蝎掉落了解毒剂。', 'gold');
+  } else if (item === 'purifyeye') {
+    game.purifyEyeLevel = Math.min(3, (game.purifyEyeLevel || 0) + 1);
+    showCenterFloat('+净化之眼', 'item');
+    log('祭司魂魄留下净化之眼的微光。', 'gold');
+  } else if (item === 'diamond') {
+    game.treasures[keyOf(m.x, m.y)] = { value: 100, type: 'diamond', name: '钻石' };
+    showCenterFloat('+钻石', 'item');
+    log('石像鬼碎块中露出一枚钻石。', 'gold');
+  } else if (item === 'water') {
+    game.purifies[keyOf(m.x, m.y)] = 'water';
+    showCenterFloat('+生命之水', 'item');
+    log('豺狼看守掉落了生命之水。', 'gold');
+  } else if (item === 'relic') {
+    const available = RELIC_DEFS.filter(r => !hasRelic(r.id));
+    if (available.length) {
+      showCenterFloat('+遗物', 'item');
+      collectRelic(pick(available).id);
+    }
+  }
+}
+
+function killMonster(m, source = '') {
+  markMonsterKilled(m.type);
+  game.monsters = game.monsters.filter(x => x !== m);
+  log(`${MONSTER_TYPES[m.type].name}倒下了。${source}`, 'gold');
+  if (m.type === 'jackal' && m.pairId) {
+    const mate = game.monsters.find(x => x.type === 'jackal' && x.pairId === m.pairId);
+    if (mate) {
+      mate.enragedTurns = 3;
+      log('另一只豺狼看守发出愤怒的嚎叫，进入狂暴状态。', 'danger');
+    } else {
+      game.gold += 100;
+      game.adventureGold += 100;
+      showGoldGain(100);
+      log('成对击杀豺狼看守，额外获得 100 金币。', 'gold');
+    }
+  }
+  if (hasRelic('sacrifice_blade') && Number.isFinite(m.maxHp)) {
+    const gold = m.maxHp * 5;
+    game.gold += gold;
+    game.adventureGold += gold;
+    showGoldGain(gold);
+    log(`献祭之刃收割灵魂：额外获得 ${gold} 金币。`, 'gold');
+    spreadCursedGround(m.x, m.y);
+  }
+  reduceCurseForKill(m);
+}
+
+function spreadCursedGround(cx, cy) {
+  if (!game.cursedGrounds) game.cursedGrounds = new Set();
+  for (let y = cy - 1; y <= cy + 1; y++) {
+    for (let x = cx - 1; x <= cx + 1; x++) {
+      if (!inBounds(x, y) || isExit(x, y) || game.pits.has(keyOf(x, y))) continue;
+      game.cursedGrounds.add(keyOf(x, y));
+    }
+  }
+  log('诅咒爆发，周围地面被暗紫色裂纹污染。', 'danger');
+}
+
+function isSleepingMonster(m) {
+  return game.turn < AWAKEN_TURN && !m.startled;
+}
+
+function playerAttack(m) {
+  const info = MONSTER_TYPES[m.type];
+  const wasSleeping = isSleepingMonster(m);
+  if (m.type === 'ghost') {
+    log('匕首划过幽灵的残影，没有造成伤害。', 'danger');
+    if (wasSleeping) {
+      m.startled = true;
+      log('幽灵被惊醒了，墓室里浮现出刺骨的叹息。', 'important');
+      render();
+      endTurn();
+      return;
+    }
+    game.hp -= info.attack;
+    log(`${info.name}反击，生命 -${info.attack}。`, 'danger');
+    render();
+    if (game.hp <= 0) gameOver(`${info.name}的反击击倒了你。`);
+    else endTurn();
+    return;
+  }
+  const damage = getDamageAmount(1);
+  m.hp -= damage;
+  log(`你用匕首刺向${info.name}，造成 ${damage} 点伤害。`, 'danger');
+  if (m.hp <= 0) {
+    killMonster(m);
+    render();
+    endTurn();
+    return;
+  } else {
+    log(`${info.name}剩余生命：${m.hp}。`);
+  }
+  if (wasSleeping) {
+    m.startled = true;
+    log(`${info.name}被惊醒了！它还没有反击，但下一次攻击会招来报复。`, 'important');
+    render();
+    endTurn();
+    return;
+  }
+  game.hp -= info.attack;
+  log(`${info.name}反击，生命 -${info.attack}。`, 'danger');
+  render();
+  if (game.hp <= 0) gameOver(`${info.name}的反击击倒了你。`);
+  else endTurn();
+}
+
+function attackAdjacent() {
+  if (game.over || game.shopOpen || game.modalOpen) return;
+  if (!game.hasDagger) {
+    log('我没有武器，无法攻击。', 'danger');
+    return;
+  }
+  // attack the nearest adjacent monster (any direction)
+  const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+  for (const [dx, dy] of dirs) {
+    const tx = game.player.x + dx;
+    const ty = game.player.y + dy;
+    if (!inBounds(tx, ty)) continue;
+    if (hasWallBetween(game.player.x, game.player.y, dx, dy)) continue;
+    const m = monsterAt(tx, ty);
+    if (m) { playerAttack(m); return; }
+  }
+  log('四周没有可以攻击的怪物。');
+}
+
+function playPurifyFeedback(amount = 0) {
+  playSfx('purify');
+  const container = document.getElementById('board-container');
+  const bar = document.getElementById('curse-bar');
+  container.classList.remove('purify-flash');
+  if (bar && bar.parentElement) bar.parentElement.classList.remove('purify-flash');
+  container.querySelectorAll('.purify-reduce-float').forEach(el => el.remove());
+  // force restart animation
+  void container.offsetWidth;
+  container.classList.add('purify-flash');
+  if (bar && bar.parentElement) bar.parentElement.classList.add('purify-flash');
+  if (amount > 0) queueCurseFloat(-amount);
+  setTimeout(() => {
+    container.classList.remove('purify-flash');
+    if (bar && bar.parentElement) bar.parentElement.classList.remove('purify-flash');
+  }, 950);
+}
+
+function isOccupied(x, y, self) {
+  if (game.monsters.some(m => m !== self && m.x === x && m.y === y)) return true;
+  return false;
+}
+
+function checkLose() {
+  if (game.hp <= 0) {
+    gameOver('你的生命已尽，长眠于古墓之中。');
+    return;
+  }
+  // blocked check: if all 4 sides are blocked and we're in awaken phase
+  if (game.turn >= AWAKEN_TURN) {
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    let blocked = 0;
+    for (const [dx, dy] of dirs) {
+      const nx = game.player.x + dx, ny = game.player.y + dy;
+      if (!inBounds(nx, ny)) { blocked++; continue; }
+      if (hasWallBetween(game.player.x, game.player.y, dx, dy)) blocked++;
+      else if (game.pits.has(`${nx},${ny}`)) blocked++;
+      else if (game.wells && game.wells.has(`${nx},${ny}`)) blocked++;
+      else if (monsterAt(nx, ny)) blocked++;
+    }
+    if (blocked === 4) {
+      if (isNearExit(game.player.x, game.player.y)) {
+        log('出口就在身边，即使怪物逼近，你仍有逃生的机会。', 'important');
+        return;
+      }
+      if (game.hasDagger) {
+        log('你被围住了，但手中的匕首仍可能劈开一条生路。', 'important');
+        return;
+      }
+      gameOver('你被怪物完全堵住，无路可逃！或许有了武器，情况会不一样？');
+    }
+  }
+}
+
+function showCenterFloat(text, type = 'item') {
+  const container = document.getElementById('board-container');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = `center-float ${type}`;
+  const lane = audioState.floatLane++;
+  el.style.top = `calc(50% + ${lane * 30}px)`;
+  el.textContent = text;
+  container.appendChild(el);
+  setTimeout(() => {
+    if (el.parentNode) el.remove();
+    audioState.floatLane = Math.max(0, audioState.floatLane - 1);
+  }, 1000);
+}
+
+function scheduleFloatFlush() {
+  if (audioState.floatBatch.timer) return;
+  audioState.floatBatch.timer = setTimeout(flushFloatBatch, 0);
+}
+
+function queueCurseFloat(delta) {
+  audioState.floatBatch.curse += delta;
+  scheduleFloatFlush();
+}
+
+function queueGoldFloat(amount) {
+  audioState.floatBatch.gold += amount;
+  scheduleFloatFlush();
+}
+
+function flushFloatBatch() {
+  const batch = audioState.floatBatch;
+  batch.timer = null;
+  const curse = batch.curse;
+  const gold = batch.gold;
+  batch.curse = 0;
+  batch.gold = 0;
+  if (curse < 0) showCenterFloat(`诅咒-${Math.abs(curse)}`, 'recover');
+  else if (curse > 0) showCenterFloat(`诅咒+${curse}`, 'curse');
+  if (gold > 0) showCenterFloat(`+${gold}金币`, 'gold');
+}
+
+function showGoldGain(amount) {
+  if (amount > 0) {
+    queueGoldFloat(amount);
+    playSfx('coin');
+  }
+}
+
+function increaseCurse(amount) {
+  if (amount <= 0) return 0;
+  const before = game.curse;
+  game.curse = Math.min(CURSE_MAX, game.curse + amount);
+  const gained = game.curse - before;
+  if (gained > 0) {
+    queueCurseFloat(gained);
+    playSfx('curse');
+  }
+  return gained;
+}
+
+function isExit(x, y) {
+  return game.exits && game.exits.has(keyOf(x, y));
+}
+
+function isNearExit(x, y) {
+  if (!game.exits) return dist({ x, y }, game.start) <= 1;
+  for (const k of game.exits) {
+    const [ex, ey] = k.split(',').map(Number);
+    if (Math.abs(ex - x) + Math.abs(ey - y) <= 1) return true;
+  }
+  return false;
+}
+
+function detonateBomb() {
+  const bx = game.placedBomb.x, by = game.placedBomb.y;
+  playSfx('explosion');
+  log('💥 炸弹爆炸！', 'important');
+  // show explosion effect on affected cells before removing monsters
+  const affectedKeys = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      affectedKeys.push(`${bx + dx},${by + dy}`);
+    }
+  }
+  showExplosionEffect(affectedKeys);
+  // delay monster removal until explosion animation finishes
+  const killed = [];
+  const ignored = [];
+  let nestsDestroyed = 0;
+  affectedKeys.forEach(k => {
+    if (game.scarabNests && game.scarabNests[k] && !game.scarabNests[k].exhausted) {
+      game.scarabNests[k].exhausted = true;
+      nestsDestroyed++;
+    }
+  });
+  game.monsters = game.monsters.filter(m => {
+    if (Math.abs(m.x - bx) <= 1 && Math.abs(m.y - by) <= 1) {
+      if (m.type === 'ghost' || m.type === 'giant_scarab') {
+        ignored.push(MONSTER_TYPES[m.type].name);
+        return true;
+      }
+      killed.push(MONSTER_TYPES[m.type].name);
+      reduceCurseForKill(m);
+      return false;
+    }
+    return true;
+  });
+  setTimeout(() => {
+    killed.forEach(name => log(`  · ${name}被炸碎。`, 'gold'));
+    ignored.forEach(name => log(`  · ${name}穿过爆风，毫发无伤。`, 'danger'));
+    if (nestsDestroyed) log(`  · ${nestsDestroyed} 个圣甲虫巢穴被炸毁。`, 'gold');
+    render();
+  }, 550);
+  game.placedBomb = null;
+}
+
+function showExplosionEffect(keys) {
+  const board = document.getElementById('board');
+  const origin = getViewOrigin();
+  const cells = board.children;
+  for (let sy = 0; sy < VIEW_SIZE; sy++) {
+    for (let sx = 0; sx < VIEW_SIZE; sx++) {
+      const x = origin.x + sx;
+      const y = origin.y + sy;
+      if (keys.includes(`${x},${y}`)) {
+        const c = cells[sy * VIEW_SIZE + sx];
+        const eff = document.createElement('div');
+        eff.className = 'explosion-effect';
+        eff.textContent = '💥';
+        c.appendChild(eff);
+        setTimeout(() => { if (eff.parentNode) eff.remove(); }, 650);
+      }
+    }
+  }
+}
+
+function startAim(itemId) {
+  if (game.aim && game.aim.itemId === itemId) {
+    cancelAim('已取消瞄准。');
+    return;
+  }
+  game.aim = { itemId, previewKeys: new Set(), impactKeys: new Set(), invalidKey: '' };
+  const nameMap = { flash: '照明棒', gun: '手枪', holy: '圣光术', hook: '钩爪' };
+  log(`已选中${nameMap[itemId]}。将鼠标移到目标方向预览范围，再次左键或按空格确认；再次点击道具可取消。`, 'important');
+  render();
+}
+
+function cancelAim(msg = '') {
+  game.aim = null;
+  if (msg) log(msg);
+  render();
+}
+
+function getAimDirection(x, y) {
+  const dx = x - game.player.x;
+  const dy = y - game.player.y;
+  if (dx === 0 && dy === 0) return null;
+  if (Math.abs(dx) >= Math.abs(dy)) return { dx: Math.sign(dx), dy: 0 };
+  return { dx: 0, dy: Math.sign(dy) };
+}
+
+function isHookObstacle(x, y) {
+  return !inBounds(x, y) || (game.wells && game.wells.has(keyOf(x, y))) || (game.cursedWells && game.cursedWells.has(keyOf(x, y)));
+}
+
+function isHookSafeLanding(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) &&
+    !game.pits.has(key) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !(game.quicksands && game.quicksands.has(key)) &&
+    !(game.cursedGrounds && game.cursedGrounds.has(key)) &&
+    !monsterAt(x, y);
+}
+
+function buildHookPreview(dir) {
+  const previewKeys = new Set();
+  const impactKeys = new Set();
+  let px = game.player.x;
+  let py = game.player.y;
+  let lastSafe = null;
+  for (let i = 1; i <= currentMapSize(); i++) {
+    if (hasWallBetween(px, py, dir.dx, dir.dy)) break;
+    const x = game.player.x + dir.dx * i;
+    const y = game.player.y + dir.dy * i;
+    if (!inBounds(x, y)) break;
+    previewKeys.add(keyOf(x, y));
+    if (isHookObstacle(x, y)) break;
+    if (isHookSafeLanding(x, y)) lastSafe = { x, y };
+    px = x;
+    py = y;
+  }
+  if (lastSafe) impactKeys.add(keyOf(lastSafe.x, lastSafe.y));
+  return { previewKeys, impactKeys, landing: lastSafe };
+}
+
+function buildDirectionalPreview(itemId, dir) {
+  if (itemId === 'hook') return buildHookPreview(dir);
+  const maxRange = itemId === 'gun' || itemId === 'flash' ? 5 : currentMapSize();
+  const previewKeys = new Set();
+  const impactKeys = new Set();
+  let target = null;
+  const targets = [];
+  let last = null;
+  for (let i = 1; i <= maxRange; i++) {
+    const x = game.player.x + dir.dx * i;
+    const y = game.player.y + dir.dy * i;
+    if (!inBounds(x, y)) break;
+    last = { x, y };
+    previewKeys.add(keyOf(x, y));
+    const m = monsterAt(x, y);
+    if (itemId === 'gun') {
+      if (m && (game.gunLevel >= 2 || m.type !== 'ghost')) {
+        targets.push(m);
+        impactKeys.add(keyOf(m.x, m.y));
+        if (game.gunLevel <= 0 || targets.length >= 2) break;
+      }
+      continue;
+    }
+    if (itemId === 'holy' && m) { target = m; break; }
+  }
+  if (itemId === 'holy') {
+    const center = target || last;
+    if (center) {
+      for (let y = center.y - 1; y <= center.y + 1; y++) {
+        for (let x = center.x - 1; x <= center.x + 1; x++) {
+          if (inBounds(x, y)) impactKeys.add(keyOf(x, y));
+        }
+      }
+    }
+  } else if (target) {
+    impactKeys.add(keyOf(target.x, target.y));
+  }
+  return { previewKeys, impactKeys, target: target || targets[0] || null, targets };
+}
+
+function updateAimPreview(x, y) {
+  if (!game.aim || game.shopOpen || game.modalOpen || game.over) return;
+  const dir = getAimDirection(x, y);
+  if (!dir) {
+    game.aim.previewKeys = new Set();
+    game.aim.impactKeys = new Set();
+    game.aim.invalidKey = keyOf(x, y);
+    render();
+    return;
+  }
+  const preview = buildDirectionalPreview(game.aim.itemId, dir);
+  game.aim.dir = dir;
+  game.aim.previewKeys = preview.previewKeys;
+  game.aim.impactKeys = preview.impactKeys;
+  game.aim.target = preview.target || null;
+  game.aim.targets = preview.targets || [];
+  game.aim.landing = preview.landing || null;
+  game.aim.invalidKey = '';
+  render();
+}
+
+function damageMonster(m, amount, type, sourceText = '') {
+  if (!m) return false;
+  if (m.type === 'gargoyle' && m.petrified) {
+    log('石化状态的石像鬼免疫了伤害。', 'danger');
+    return false;
+  }
+  if (m.type === 'giant_scarab' && type === 'holy') amount = 5;
+  amount = getDamageAmount(amount);
+  const info = MONSTER_TYPES[m.type];
+  if (m.type === 'ghost' && type === 'physical') {
+    log(`${info.name}没有实体，物理伤害穿透了它。`, 'danger');
+    return false;
+  }
+  if (m.type === 'ghost' && type === 'holy') {
+    killMonster(m, sourceText || '被圣光焚尽。');
+    return true;
+  }
+  if (m.type === 'ghost' && type === 'sacred') {
+    killMonster(m, sourceText || '被圣弹放逐。');
+    return true;
+  }
+  m.hp -= amount;
+  log(`${sourceText || '攻击'}对${info.name}造成 ${amount} 点伤害。`, 'danger');
+  if (m.hp <= 0) {
+    killMonster(m);
+    return true;
+  }
+  log(`${info.name}剩余生命：${m.hp}。`);
+  return false;
+}
+
+function confirmAim() {
+  if (!game.aim) return;
+  if (!game.aim.dir || !game.aim.previewKeys || game.aim.previewKeys.size === 0) {
+    log('请选择一个有效方向。', 'danger');
+    return;
+  }
+  const itemId = game.aim.itemId;
+  const previewKeys = new Set(game.aim.previewKeys);
+  const impactKeys = new Set(game.aim.impactKeys);
+  const target = game.aim.target;
+  const targets = game.aim.targets || [];
+  const landing = game.aim.landing || null;
+  game.aim = null;
+  if (itemId === 'flash') {
+    if (game.flashlights <= 0) { log('没有照明棒。'); render(); return; }
+    game.flashlights--;
+    previewKeys.forEach(k => {
+      const [x, y] = k.split(',').map(Number);
+      if (inBounds(x, y)) {
+        game.revealed[y][x] = true;
+        game.flashlitCells.add(k);
+      }
+    });
+    log('✦ 照明棒照亮了选定方向。', 'important');
+  } else if (itemId === 'gun') {
+    if (!game.hasGun) { log('你还没有手枪。', 'danger'); render(); return; }
+    if (game.bullets <= 0) { log('没有子弹。', 'danger'); render(); return; }
+    game.bullets--;
+    const bulletType = game.gunLevel >= 2 ? 'sacred' : 'physical';
+    if (game.gunLevel >= 1 && targets.length) {
+      damageMonster(targets[0], 3, bulletType, game.gunLevel >= 2 ? '圣弹' : '子弹');
+      if (targets[1]) damageMonster(targets[1], 1, bulletType, game.gunLevel >= 2 ? '圣弹余威' : '穿透余威');
+    } else if (target) {
+      damageMonster(target, 3, bulletType, game.gunLevel >= 2 ? '圣弹' : '子弹');
+    } else {
+      log('枪声在墓室中回荡，却没有命中可受伤的目标。', 'danger');
+    }
+  } else if (itemId === 'hook') {
+    if (game.hooks <= 0) { log('没有钩爪。', 'danger'); render(); return; }
+    if (!landing) { log('钩爪没有找到可落脚的位置。', 'danger'); render(); return; }
+    game.hooks--;
+    movePlayerByHook(landing);
+  } else if (itemId === 'holy') {
+    if (game.holyLights <= 0) { log('没有圣光术。', 'danger'); render(); return; }
+    game.holyLights--;
+    let hit = 0;
+    [...game.monsters].forEach(m => {
+      if (impactKeys.has(keyOf(m.x, m.y))) {
+        hit++;
+        damageMonster(m, m.type === 'giant_scarab' ? 5 : 3, 'holy', '圣光');
+      }
+    });
+    impactKeys.forEach(k => {
+      if (game.scarabNests && game.scarabNests[k] && !game.scarabNests[k].exhausted) {
+        game.scarabNests[k].exhausted = true;
+        log('圣光净化了圣甲虫巢穴，它不再释放虫群。', 'gold');
+      }
+    });
+    if (hit === 0) log('金色圣光在空旷处爆发，没有命中怪物。');
+  }
+  render();
+}
+
+function useFlashlight() {
+  if (game.flashlights <= 0) { log('没有照明棒。'); return; }
+  startAim('flash');
+}
+
+function placeBomb() {
+  if (game.bombs <= 0) { log('没有炸弹。'); return; }
+  if (game.placedBomb) { log('已有一颗炸弹放置中。'); return; }
+  game.bombs--;
+  game.placedBomb = { x: game.player.x, y: game.player.y };
+  log('💣 你放置了一颗炸弹，下回合爆炸。', 'important');
+  render();
+}
+
+function useAntidote() {
+  if (game.antidotes <= 0) { log('没有解毒剂。'); return; }
+  game.antidotes--;
+  game.poisonTurns = 0;
+  const reduce = Math.ceil(CURSE_MAX * 0.15);
+  game.curse = Math.max(0, game.curse - reduce);
+  log('✦ 饮下解毒剂，诅咒值 -15%。一阵清明穿过你的脑海。', 'gold');
+  playPurifyFeedback(reduce);
+  render();
+}
+
+function useHourglass() {
+  if (!hasRelic('soul_hourglass') || game.hourglassUsed) { log('碎魂沙漏已经失去力量。'); return; }
+  game.hourglassUsed = true;
+  game.curse = 0;
+  game.hourglassPenalty++;
+  game.hp = Math.min(game.hp, getMaxHp());
+  log('你摇动碎魂沙漏，诅咒被清零，但生命上限永久损失1点。', 'danger');
+  playPurifyFeedback(CURSE_MAX);
+  render();
+}
+
+function useHolyLight() {
+  if (game.holyLights <= 0) { log('没有圣光术。'); return; }
+  game.holyLights--;
+  let hit = 0;
+  let purified = 0;
+  const impactKeys = new Set();
+  for (let y = game.player.y - 1; y <= game.player.y + 1; y++) {
+    for (let x = game.player.x - 1; x <= game.player.x + 1; x++) {
+      if (inBounds(x, y)) impactKeys.add(keyOf(x, y));
+    }
+  }
+  [...game.monsters].forEach(m => {
+    if (impactKeys.has(keyOf(m.x, m.y))) {
+      hit++;
+      damageMonster(m, m.type === 'giant_scarab' ? 5 : 3, 'holy', '圣光');
+    }
+  });
+  impactKeys.forEach(k => {
+    if (game.cursedGrounds && game.cursedGrounds.delete(k)) purified++;
+    if (game.cursedWells && game.cursedWells.delete(k)) purified++;
+    if (game.scarabNests && game.scarabNests[k] && !game.scarabNests[k].exhausted) {
+      game.scarabNests[k].exhausted = true;
+      purified++;
+    }
+  });
+  if (hit === 0 && purified === 0) log('金色圣光以你为中心爆发，却没有命中怪物。');
+  else log(`金色圣光以你为中心爆发，笼罩周围 3×3 区域${purified ? `，净化 ${purified} 处诅咒地形` : ''}。`, 'important');
+  render();
+}
+
+function useGun() {
+  if (!game.hasGun) { log('你还没有手枪。', 'danger'); return; }
+  if (game.bullets <= 0) { log('没有子弹。', 'danger'); return; }
+  startAim('gun');
+}
+
+function useHook() {
+  if (game.hooks <= 0) { log('没有钩爪。'); return; }
+  startAim('hook');
+}
+
+function collectTileAt(x, y) {
+  const tk = keyOf(x, y);
+  if (game.purifies && game.purifies[tk]) {
+    const pid = game.purifies[tk];
+    const pdef = PURIFY_TYPES[pid];
+    if (pid === 'scarab') game.scarabTalismanGrace = true;
+    const percent = hasRelic('judgement_scale') ? pdef.reduce * 2 : pdef.reduce;
+    const reduceAmt = Math.ceil(CURSE_MAX * percent / 100);
+    game.curse = Math.max(0, game.curse - reduceAmt);
+    log(`✦ 拾得${pdef.name}：诅咒值 -${percent}%。<br><span style="color:#a08660;font-size:10px">${pdef.desc}</span>`, 'gold');
+    playPurifyFeedback(reduceAmt);
+    delete game.purifies[tk];
+  }
+  if (game.treasures[tk]) {
+    const treasure = game.treasures[tk];
+    const value = getGoldAmount(treasure.value);
+    log(`✦ 拾取${treasure.name} +${value} 金币`, 'gold');
+    game.gold += value;
+    game.adventureGold += value;
+    showGoldGain(value);
+    delete game.treasures[tk];
+  }
+  if (game.relics[tk]) {
+    const relicId = game.relics[tk];
+    delete game.relics[tk];
+    collectRelic(relicId);
+  }
+}
+
+function collectRelic(relicId) {
+  const relic = RELIC_MAP[relicId];
+  if (!relic || hasRelic(relicId)) return;
+  unlockNotebook('relics', relicId);
+  game.collectedRelics.push(relicId);
+  game.relicsCollected = game.collectedRelics.length;
+  applyRelicEffect(relicId);
+  log(`★ 拾得遗物：${relic.name}。`, relic.cursed ? 'danger' : 'gold');
+  showRelicPopup(relic);
+  if (game.relicsCollected >= TOTAL_RELICS && !game.pharaohGateUnlocked) {
+    game.pharaohGateUnlocked = true;
+    game.pendingPharaohSummon = true;
+  }
+}
+
+function applyRelicEffect(relicId) {
+  if (relicId === 'golden_mask') {
+    const bonus = Math.round(game.gold * 0.3);
+    game.gold += bonus;
+    game.adventureGold += Math.round(game.adventureGold * 0.3);
+    showGoldGain(bonus);
+    log(`黄金面具让已获得财富增重：额外获得 ${bonus} 金币。`, 'gold');
+  } else if (relicId === 'life_seed') {
+    game.hp = getMaxHp();
+    const reduce = Math.ceil(game.curse * 0.5);
+    game.curse = Math.max(0, game.curse - reduce);
+    playPurifyFeedback(reduce);
+  } else if (relicId === 'pharaoh_coin') {
+    const value = getGoldAmount(500);
+    game.gold += value;
+    game.adventureGold += value;
+    showGoldGain(value);
+    log(`法老的金币沉入你的钱袋：+${value} 金币。`, 'gold');
+  } else if (relicId === 'sun_disk') {
+    revealAround(game.player.x, game.player.y, getVisionRadius());
+  } else if (relicId === 'memory_tablet') {
+    applyMemoryTabletHints();
+  }
+}
+
+function movePlayerByHook(p) {
+  playSfx('hook');
+  const oldKey = keyOf(game.player.x, game.player.y);
+  game.player.x = p.x;
+  game.player.y = p.y;
+  revealAround(p.x, p.y, 1);
+  if (game.pendingCrackCollapse && game.pendingCrackCollapse === oldKey) {
+    game.crackedFloors.delete(oldKey);
+    game.pits.add(oldKey);
+    game.pendingCrackCollapse = '';
+    log('身后的破碎地面崩塌成了坑。', 'danger');
+  }
+  const k = keyOf(p.x, p.y);
+  if (game.crackedFloors && game.crackedFloors.has(k)) {
+    game.pendingCrackCollapse = k;
+    log('钩爪把你拉到破碎地面上，离开后它会塌陷。', 'danger');
+  }
+  if (game.trapdoors && game.trapdoors.has(k)) {
+    triggerTrapdoor(p.x, p.y, true);
+    return;
+  }
+  collectTileAt(p.x, p.y);
+  log('钩爪收紧，你越过阻碍被拉向前方。', 'important');
+  render();
+  promptEscapeAtStart();
+}
+
+function triggerScarabNest(x, y) {
+  const key = keyOf(x, y);
+  const nest = game.scarabNests && game.scarabNests[key];
+  if (!nest || nest.exhausted || nest.released >= 3 || game.turn < nest.nextTurn) return;
+  if (game.monsters.filter(m => m.type === 'scarab').length >= 6) return;
+  const spots = [];
+  for (let yy = y - 1; yy <= y + 1; yy++) {
+    for (let xx = x - 1; xx <= x + 1; xx++) {
+      if (canPlaceMonster(xx, yy)) spots.push({ x: xx, y: yy });
+    }
+  }
+  if (!spots.length) return;
+  const p = pick(spots);
+  game.monsters.push(createMonster('scarab', p.x, p.y));
+  nest.released++;
+  nest.nextTurn = game.turn + 3;
+  if (nest.released >= 3) nest.exhausted = true;
+  log('你踩碎了虫穴的外壳——一只圣甲虫从裂缝中涌出。', 'danger');
+}
+
+function triggerTrapdoor(x, y, safe) {
+  const key = keyOf(x, y);
+  if (!game.trapdoors || !game.trapdoors.has(key)) return false;
+  game.trapdoors.delete(key);
+  const target = findTrapdoorExit(x, y);
+  if (!target) return false;
+  game.player.x = target.x;
+  game.player.y = target.y;
+  revealAround(target.x, target.y, getVisionRadius());
+  if (!safe) {
+    let immune = false;
+    if (game.scarabTalismanGrace && Math.random() < 0.5) immune = true;
+    if (!immune) game.hp--;
+    log(immune ? '圣甲虫护符发出微光，你从暗道坠落却没有受伤。' : '脚下的地面突然塌陷——你掉进黑暗通道，生命 -1！', immune ? 'gold' : 'danger');
+  } else {
+    log('钩爪钩住陷阱门边缘，你安全触发暗道传送。', 'important');
+  }
+  collectTileAt(target.x, target.y);
+  endTurn();
+  promptEscapeAtStart();
+  return true;
+}
+
+function findTrapdoorExit(x, y) {
+  const preferRight = x < game.mapSize / 2;
+  for (let i = 0; i < 180; i++) {
+    const tx = preferRight ? rng(Math.floor(game.mapSize / 2), game.mapSize - 1) : rng(0, Math.floor(game.mapSize / 2));
+    const ty = rng(0, game.mapSize - 1);
+    if (isSafeTeleportCell(tx, ty)) return { x: tx, y: ty };
+  }
+  return null;
+}
+
+function isSafeTeleportCell(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) && !isExit(x, y) && !game.pits.has(key) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !(game.quicksands && game.quicksands.has(key)) &&
+    !(game.scarabNests && game.scarabNests[key]) &&
+    !(game.trapdoors && game.trapdoors.has(key)) &&
+    !(game.jackalLairs && game.jackalLairs.has(key)) &&
+    !(game.relics && game.relics[key]) &&
+    !(game.treasures && game.treasures[key]) &&
+    !(game.purifies && game.purifies[key]) &&
+    !monsterAt(x, y);
+}
+
+function useScroll() {
+  if (game.scrolls <= 0) { log('没有传送卷轴。'); return; }
+  const validKeys = new Set();
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const x = game.player.x + dx, y = game.player.y + dy;
+      if (canTeleportTo(x, y)) validKeys.add(keyOf(x, y));
+    }
+  }
+  if (!validKeys.size) { log('卷轴没有找到可传送的位置。', 'danger'); return; }
+  game.teleportSelect = { validKeys, invalidKey: '' };
+  log('传送卷轴已展开：请选择 3×3 范围内的目标地格。', 'important');
+  render();
+}
+
+function confirmScrollTeleport(x, y) {
+  const key = keyOf(x, y);
+  if (!game.teleportSelect || !game.teleportSelect.validKeys.has(key)) {
+    if (game.teleportSelect) game.teleportSelect.invalidKey = key;
+    log('只能选择周围 3×3 范围内的安全地格。', 'danger');
+    render();
+    return;
+  }
+  game.teleportSelect = null;
+  game.scrolls--;
+  teleportTo({ x, y });
+  log('✦ 传送卷轴将你送往指定地格。', 'important');
+}
+
+function useRope() {
+  if (game.ropes <= 0) { log('没有绳索。'); return; }
+  const exits = [...game.exits].map(k => {
+    const [x, y] = k.split(',').map(Number);
+    return { x, y };
+  });
+  exits.sort(() => Math.random() - 0.5);
+  for (const e of exits) {
+    const spots = [];
+    for (let y = e.y - 2; y <= e.y + 2; y++) {
+      for (let x = e.x - 2; x <= e.x + 2; x++) {
+        if (canTeleportTo(x, y) && game.revealed[y][x]) spots.push({ x, y });
+      }
+    }
+    if (spots.length) {
+      game.ropes--;
+      teleportTo(pick(spots));
+      log('✦ 绳索把你拖向一个已知出口附近。', 'important');
+      return;
+    }
+  }
+  log('绳索找不到可见的出口附近落点。', 'danger');
+}
+
+function canTeleportTo(x, y) {
+  const key = keyOf(x, y);
+  return inBounds(x, y) &&
+    !game.pits.has(key) &&
+    !(game.wells && game.wells.has(key)) &&
+    !(game.cursedWells && game.cursedWells.has(key)) &&
+    !(game.scarabNests && game.scarabNests[key]) &&
+    !(game.jackalLairs && game.jackalLairs.has(key)) &&
+    !monsterAt(x, y);
+}
+
+function teleportTo(p) {
+  game.player.x = p.x;
+  game.player.y = p.y;
+  revealAround(p.x, p.y, 1);
+  collectTileAt(p.x, p.y);
+  render();
+  promptEscapeAtStart();
+}
+
+function getBackpackCapacity() {
+  return 3 + Math.min(2, game.backpackLevel || 0) * 3;
+}
+
+function getConsumableStackIds() {
+  const ids = [];
+  if (game.bullets > 0) ids.push('bullet');
+  if (game.flashlights > 0) ids.push('flash');
+  if (game.bombs > 0) ids.push('bomb');
+  if (game.antidotes > 0) ids.push('antidote');
+  if (game.holyLights > 0) ids.push('holy');
+  if (game.scrolls > 0) ids.push('scroll');
+  if (game.ropes > 0) ids.push('rope');
+  if (game.hooks > 0) ids.push('hook');
+  return ids;
+}
+
+function canCarryConsumable(id) {
+  const ids = getConsumableStackIds();
+  return ids.includes(id) || ids.length < getBackpackCapacity();
+}
+
+function getCarryBlockReason(g) {
+  if (g.id === 'gun' && game.bullets <= 0 && !canCarryConsumable('bullet')) return `背包已满：无法接收赠送子弹`;
+  if (g.kind !== 'consumable') return '';
+  if (canCarryConsumable(g.id)) return '';
+  return `背包已满：${getConsumableStackIds().length} / ${getBackpackCapacity()}`;
+}
+
+function openShop(forceRefresh = false, bypassExit = false) {
+  if (!bypassExit && !isExit(game.player.x, game.player.y)) {
+    log('只有在出口才能交易。');
+    return;
+  }
+  game.shopOpen = true;
+  if (forceRefresh || !game.currentShopGoods) game.currentShopGoods = getShopGoods();
+  const goods = game.currentShopGoods.map(renderShopItem).join('');
+  const pharaohButton = game.pharaohGateUnlocked && !game.pharaohConquered
+    ? '<button class="btn" onclick="startPharaohBattle()">直面法老</button>'
+    : '';
+  showModal(`
+    <h2>⚱ 远 古 商 店 ⚱</h2>
+    <p>第 ${game.adventures} 次冒险整备中</p>
+    <p>你的金币: <span style="color:#ffd966;font-weight:bold">${game.gold}</span></p>
+    <p>背包：<span style="color:#ffd966;font-weight:bold">${getConsumableStackIds().length} / ${getBackpackCapacity()}</span></p>
+    <div id="shop-items" class="${game.hasMerchantGuild ? 'merchant-shop' : ''}">
+      ${goods}
+    </div>
+    ${pharaohButton}
+    <button class="btn" onclick="closeShop()">离开商店</button>
+  `);
+}
+
+function getAllShopGoods() {
+  return [
+    { id: 'dagger', kind: 'permanent', name: '🗡️ 匕首', desc: '永久道具。攻击力1，试图走向面前怪物时自动攻击。', price: DAGGER_PRICE, owned: '永久武器' },
+    { id: 'gun', kind: 'permanent', name: '🔫 手枪', desc: '永久武器。购买时赠送3发子弹，可对5格内直线方向第一个有实体怪物造成3点物理伤害。', price: GUN_PRICE, owned: '永久武器' },
+    { id: 'backpack1', kind: 'upgrade', name: '🎒 背包扩容 I', desc: '永久增益。背包格子 +3，消耗品携带上限提升到6格。', price: BACKPACK_UPGRADE_PRICES[0], owned: `当前 ${getBackpackCapacity()} 格` },
+    { id: 'backpack2', kind: 'upgrade', name: '🎒 背包扩容 II', desc: '永久增益。背包格子再 +3，消耗品携带上限提升到9格。第五次冒险后可能出现。', price: BACKPACK_UPGRADE_PRICES[1], owned: `当前 ${getBackpackCapacity()} 格` },
+    { id: 'gunup1', kind: 'upgrade', name: '🔫 手枪升级 I', desc: '永久升级。子弹获得穿透：第一个怪物受3点伤害，第二个怪物受1点伤害。', price: GUN_UPGRADE_PRICES[0], owned: `当前 ${game.gunLevel || 0} / 2` },
+    { id: 'gunup2', kind: 'upgrade', name: '✦ 圣弹改造', desc: '永久升级。子弹变为圣弹，可伤害无实体怪物，并保留穿透效果。第五次冒险后可能出现。', price: GUN_UPGRADE_PRICES[1], owned: `当前 ${game.gunLevel || 0} / 2` },
+    { id: 'curseeye1', kind: 'permanent', name: '👁 诅咒之眼', desc: '永久。迷雾中的部分怪物会显示为微弱红光；初次购买随机标记3个怪物。', price: CURSE_EYE_PRICES[0], owned: '未拥有' },
+    { id: 'curseeye2', kind: 'upgrade', name: '👁 诅咒之眼 I', desc: '永久升级。随机标记5个怪物的位置，仍不会揭示地形。', price: CURSE_EYE_PRICES[1], owned: `当前 ${game.curseEyeLevel || 0} / 3` },
+    { id: 'curseeye3', kind: 'upgrade', name: '👁 诅咒之眼 II', desc: '永久升级。显示所有迷雾中怪物的位置。第五次冒险后可能出现。', price: CURSE_EYE_PRICES[2], owned: `当前 ${game.curseEyeLevel || 0} / 3` },
+    { id: 'merchant', kind: 'permanent', name: '⚖ 加入商会', desc: '永久增益。加入后，商店每次显示6个商品，左右两列各三种。', price: MERCHANT_GUILD_PRICE, owned: '未加入' },
+    { id: 'pharaohSeal', kind: 'permanent', name: '🏅 法老之印', desc: '击败法老后解锁。永久道具：每次探险初始获得一个圣光术。', price: PHARAOH_SEAL_PRICE, owned: '未拥有' },
+    { id: 'purifyeye1', kind: 'permanent', name: '🟢 净化之眼', desc: '永久。一颗被神圣泉水浸泡过的猫眼石，会在迷雾中以绿光标记部分净化道具。', price: PURIFY_EYE_PRICES[0], owned: '未拥有' },
+    { id: 'purifyeye2', kind: 'upgrade', name: '🟢 净化之眼 I', desc: '永久升级。随机标记5个净化道具位置，仍不会揭示地形。', price: PURIFY_EYE_PRICES[1], owned: `当前 ${game.purifyEyeLevel || 0} / 3` },
+    { id: 'purifyeye3', kind: 'upgrade', name: '🟢 净化之眼 II', desc: '永久升级。显示所有迷雾中净化道具位置。第五次冒险后可能出现。', price: PURIFY_EYE_PRICES[2], owned: `当前 ${game.purifyEyeLevel || 0} / 3` },
+    { id: 'bullet', kind: 'consumable', name: '• 子弹', desc: '手枪弹药。每发造成3点物理伤害；圣弹改造后可伤害幽灵。', price: BULLET_PRICE, owned: `持有 ×${game.bullets}` },
+    { id: 'flash', kind: 'consumable', name: '🔦 照明棒', desc: '选择方向后，照亮直线5格，无视迷雾。', price: FLASH_PRICE, owned: `持有 ×${game.flashlights}` },
+    { id: 'bomb', kind: 'consumable', name: '💣 炸弹', desc: '在脚下放置，下回合炸开周围1格内的有实体怪物。', price: BOMB_PRICE, owned: `持有 ×${game.bombs}` },
+    { id: 'antidote', kind: 'consumable', name: '🧪 解毒剂', desc: '诅咒值 -15%。一小瓶清澈的液体，据说是用尼罗河深处的草药炼制。', price: ANTIDOTE_PRICE, owned: `持有 ×${game.antidotes}` },
+    { id: 'holy', kind: 'consumable', name: '☀ 圣光术', desc: '立即以玩家为中心 3×3 区域造成3点神圣伤害，可秒杀幽灵。', price: HOLY_LIGHT_PRICE, owned: `持有 ×${game.holyLights}` },
+    { id: 'scroll', kind: 'consumable', name: '📜 传送卷轴', desc: '传送到以当前位置为中心，上下左右各3格的菱形区域内。', price: SCROLL_PRICE, owned: `持有 ×${game.scrolls}` },
+    { id: 'rope', kind: 'consumable', name: '🪢 绳索', desc: '传送到一个随机出口5×5范围内的可见区域。', price: ROPE_PRICE, owned: `持有 ×${game.ropes}` },
+    { id: 'hook', kind: 'consumable', name: '🪝 钩爪', desc: '向选定方向发射，将你拉至命中墙壁或障碍物前的安全格。飞行过程会越过中间怪物和地形。', price: HOOK_PRICE, owned: `持有 ×${game.hooks}` },
+  ];
+}
+
+function getShopGoods() {
+  const all = getAllShopGoods();
+  const available = all.filter(g => {
+    if (g.id === 'dagger' && game.hasDagger) return false;
+    if (g.id === 'gun' && game.hasGun) return false;
+    if (g.id === 'bullet' && !game.hasGun) return false;
+    if (g.id === 'backpack1' && game.backpackLevel !== 0) return false;
+    if (g.id === 'backpack2' && (game.backpackLevel !== 1 || game.adventures < 5)) return false;
+    if (g.id === 'gunup1' && (!game.hasGun || game.gunLevel !== 0)) return false;
+    if (g.id === 'gunup2' && (!game.hasGun || game.gunLevel !== 1 || game.adventures < 5)) return false;
+    if (g.id === 'curseeye1' && game.curseEyeLevel !== 0) return false;
+    if (g.id === 'curseeye2' && game.curseEyeLevel !== 1) return false;
+    if (g.id === 'curseeye3' && (game.curseEyeLevel !== 2 || game.adventures < 5)) return false;
+    if (g.id === 'merchant' && game.hasMerchantGuild) return false;
+    if (g.id === 'pharaohSeal' && (!game.pharaohConquered || game.hasPharaohSeal)) return false;
+    if (g.id === 'purifyeye1' && game.purifyEyeLevel !== 0) return false;
+    if (g.id === 'purifyeye2' && game.purifyEyeLevel !== 1) return false;
+    if (g.id === 'purifyeye3' && (game.purifyEyeLevel !== 2 || game.adventures < 5)) return false;
+    return true;
+  });
+  return available.sort(() => Math.random() - 0.5).slice(0, game.hasMerchantGuild ? 6 : 3);
+}
+
+function renderShopItem(g) {
+  const soldOut = !!g.soldOut;
+  const fresh = getAllShopGoods().find(item => item.id === g.id);
+  if (fresh && !soldOut) g = fresh;
+  if (fresh && soldOut) g = { ...fresh, soldOut: true, owned: '已拥有' };
+  const carryReason = getCarryBlockReason(g);
+  const price = getShopPrice(g.price);
+  const disabled = soldOut || game.gold < price || !!carryReason;
+  const reason = carryReason ? `<div class="desc" style="color:#d44">${carryReason}</div>` : '';
+  const original = price < g.price ? ` <span style="text-decoration:line-through;color:#806040">${g.price}</span>` : '';
+  const priceLine = soldOut ? `已售罄 (${g.owned})` : `价格: ${price}${original} 金币 (${g.owned})`;
+  const buttonText = soldOut ? '已售罄' : '购买';
+  return `<div class="shop-item">
+    <div class="name">${g.name}</div>
+    <div class="desc">${g.desc}</div>
+    <div class="price">${priceLine}</div>
+    ${reason}
+    <button class="btn" onclick="buy('${g.id}')" ${disabled ? 'disabled' : ''}>${buttonText}</button>
+  </div>`;
+}
+
+function refreshCurrentShopGoods() {
+  if (!game.currentShopGoods) return;
+  const freshMap = new Map(getAllShopGoods().map(g => [g.id, g]));
+  game.currentShopGoods = game.currentShopGoods
+    .map(g => g.soldOut ? g : (freshMap.get(g.id) || g))
+    .filter(g => {
+      if (g.soldOut) return true;
+      if (g.id === 'dagger' && game.hasDagger) return false;
+      if (g.id === 'gun' && game.hasGun) return false;
+      if (g.id === 'merchant' && game.hasMerchantGuild) return false;
+      if (g.id === 'pharaohSeal' && game.hasPharaohSeal) return false;
+      if (g.id === 'backpack1' && game.backpackLevel !== 0) return false;
+      if (g.id === 'backpack2' && game.backpackLevel !== 1) return false;
+      if (g.id === 'gunup1' && game.gunLevel !== 0) return false;
+      if (g.id === 'gunup2' && game.gunLevel !== 1) return false;
+      if (g.id === 'curseeye1' && game.curseEyeLevel !== 0) return false;
+      if (g.id === 'curseeye2' && game.curseEyeLevel !== 1) return false;
+      if (g.id === 'curseeye3' && game.curseEyeLevel !== 2) return false;
+      if (g.id === 'purifyeye1' && game.purifyEyeLevel !== 0) return false;
+      if (g.id === 'purifyeye2' && game.purifyEyeLevel !== 1) return false;
+      if (g.id === 'purifyeye3' && game.purifyEyeLevel !== 2) return false;
+      return true;
+    });
+}
+
+function expandMerchantShopSlots() {
+  if (!game.currentShopGoods || !game.hasMerchantGuild) return;
+  const existing = new Set(game.currentShopGoods.map(g => g.id));
+  const candidates = getShopGoods().filter(g => !existing.has(g.id));
+  for (const g of candidates) {
+    if (game.currentShopGoods.length >= 6) break;
+    game.currentShopGoods.push(g);
+    existing.add(g.id);
+  }
+}
+
+function showShopPurchaseFloat(text = '购买成功') {
+  const old = document.querySelector('.shop-float');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'shop-float';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 950);
+}
+
+function getShopPrice(cost) {
+  return hasRelic('obsidian_tablet') ? Math.ceil(cost * 0.8) : cost;
+}
+
+window.buy = function(t) {
+  let bought = false;
+  if (['bullet', 'flash', 'bomb', 'antidote', 'holy', 'scroll', 'rope', 'hook'].includes(t) && !canCarryConsumable(t)) {
+    log(`背包已满，无法购买新的消耗品类型。当前 ${getConsumableStackIds().length} / ${getBackpackCapacity()}。`, 'danger');
+    openShop();
+    render();
+    return;
+  }
+  if (t === 'gun' && game.bullets <= 0 && !canCarryConsumable('bullet')) {
+    log('背包已满，无法接收手枪赠送的子弹。', 'danger');
+    openShop();
+    render();
+    return;
+  }
+  if (t === 'dagger' && !game.hasDagger && spendGold(DAGGER_PRICE)) { game.hasDagger = true; bought = true; }
+  else if (t === 'gun' && !game.hasGun && spendGold(GUN_PRICE)) { game.hasGun = true; game.bullets += 3; bought = true; log('你买下手枪，并获得3发子弹。', 'important'); }
+  else if (t === 'backpack1' && game.backpackLevel === 0 && spendGold(BACKPACK_UPGRADE_PRICES[0])) { game.backpackLevel = 1; bought = true; log('背包扩容完成：消耗品携带上限提升到6格。', 'gold'); }
+  else if (t === 'backpack2' && game.backpackLevel === 1 && game.adventures >= 5 && spendGold(BACKPACK_UPGRADE_PRICES[1])) { game.backpackLevel = 2; bought = true; log('背包扩容完成：消耗品携带上限提升到9格。', 'gold'); }
+  else if (t === 'gunup1' && game.hasGun && game.gunLevel === 0 && spendGold(GUN_UPGRADE_PRICES[0])) { game.gunLevel = 1; bought = true; log('手枪升级完成：子弹获得穿透效果。', 'gold'); }
+  else if (t === 'gunup2' && game.hasGun && game.gunLevel === 1 && game.adventures >= 5 && spendGold(GUN_UPGRADE_PRICES[1])) { game.gunLevel = 2; bought = true; log('圣弹改造完成：子弹现在可以伤害幽灵。', 'gold'); }
+  else if (t === 'curseeye1' && game.curseEyeLevel === 0 && spendGold(CURSE_EYE_PRICES[0])) { game.curseEyeLevel = 1; updateCurseEyeMarks(); bought = true; log('你挖出诅咒之眼，迷雾中的3个怪物位置浮现红光。', 'danger'); }
+  else if (t === 'curseeye2' && game.curseEyeLevel === 1 && spendGold(CURSE_EYE_PRICES[1])) { game.curseEyeLevel = 2; updateCurseEyeMarks(); bought = true; log('诅咒之眼变得更清晰，5个怪物位置浮现红光。', 'danger'); }
+  else if (t === 'curseeye3' && game.curseEyeLevel === 2 && game.adventures >= 5 && spendGold(CURSE_EYE_PRICES[2])) { game.curseEyeLevel = 3; updateCurseEyeMarks(); bought = true; log('诅咒之眼完全睁开，所有迷雾怪物都无所遁形。', 'danger'); }
+  else if (t === 'merchant' && !game.hasMerchantGuild && spendGold(MERCHANT_GUILD_PRICE)) { game.hasMerchantGuild = true; bought = true; log('你加入了古墓商会。此后商店每次会展示6件商品。', 'gold'); }
+  else if (t === 'pharaohSeal' && game.pharaohConquered && !game.hasPharaohSeal && spendGold(PHARAOH_SEAL_PRICE)) { game.hasPharaohSeal = true; bought = true; log('法老之印已归你所有：此后每次探险初始获得一个圣光术。', 'gold'); }
+  else if (t === 'purifyeye1' && game.purifyEyeLevel === 0 && spendGold(PURIFY_EYE_PRICES[0])) { game.purifyEyeLevel = 1; updatePurifyEyeMarks(); bought = true; log('净化之眼凝视黑暗，3个净化道具位置浮现绿光。', 'gold'); }
+  else if (t === 'purifyeye2' && game.purifyEyeLevel === 1 && spendGold(PURIFY_EYE_PRICES[1])) { game.purifyEyeLevel = 2; updatePurifyEyeMarks(); bought = true; log('净化之眼更加明亮，5个净化道具位置浮现绿光。', 'gold'); }
+  else if (t === 'purifyeye3' && game.purifyEyeLevel === 2 && game.adventures >= 5 && spendGold(PURIFY_EYE_PRICES[2])) { game.purifyEyeLevel = 3; updatePurifyEyeMarks(); bought = true; log('净化之眼完全睁开，所有迷雾净化道具都透出绿光。', 'gold'); }
+  else if (t === 'bullet' && game.hasGun && spendGold(BULLET_PRICE)) { game.bullets++; bought = true; }
+  else if (t === 'flash' && spendGold(FLASH_PRICE)) { game.flashlights++; bought = true; }
+  else if (t === 'bomb' && spendGold(BOMB_PRICE)) { game.bombs++; bought = true; }
+  else if (t === 'antidote' && spendGold(ANTIDOTE_PRICE)) { game.antidotes++; bought = true; }
+  else if (t === 'holy' && spendGold(HOLY_LIGHT_PRICE)) { game.holyLights++; game.everHadHolyLight = true; bought = true; }
+  else if (t === 'scroll' && spendGold(SCROLL_PRICE)) { game.scrolls++; bought = true; }
+  else if (t === 'rope' && spendGold(ROPE_PRICE)) { game.ropes++; bought = true; }
+  else if (t === 'hook' && spendGold(HOOK_PRICE)) { game.hooks++; bought = true; }
+  else { openShop(); render(); return; }
+  if (bought && game.currentShopGoods) {
+    const purchased = game.currentShopGoods.find(g => g.id === t);
+    if (purchased && purchased.kind !== 'consumable') {
+      purchased.soldOut = true;
+      purchased.owned = '已拥有';
+    }
+    game.currentShopGoods = game.currentShopGoods.filter(g => {
+      if (g.soldOut) return true;
+      if (g.id === 'gunup2' && game.gunLevel !== 1) return false;
+      if (g.id === 'backpack2' && game.backpackLevel !== 1) return false;
+      if (g.id === 'curseeye2' && game.curseEyeLevel !== 1) return false;
+      if (g.id === 'curseeye3' && game.curseEyeLevel !== 2) return false;
+      if (g.id === 'purifyeye2' && game.purifyEyeLevel !== 1) return false;
+      if (g.id === 'purifyeye3' && game.purifyEyeLevel !== 2) return false;
+      return true;
+    });
+  }
+  if (bought) refreshCurrentShopGoods();
+  if (bought && t === 'merchant') expandMerchantShopSlots();
+  openShop(false, true);
+  if (bought) showShopPurchaseFloat('购买成功');
+  render();
+};
+
+function spendGold(cost) {
+  cost = getShopPrice(cost);
+  if (game.gold < cost) return false;
+  game.gold -= cost;
+  game.adventureGold = Math.max(0, game.adventureGold - cost);
+  if (hasRelic('obsidian_tablet')) {
+    increaseCurse(5);
+    log('黑曜石板吞噬交易代价：诅咒值 +5。', 'danger');
+  }
+  return true;
+}
+
+window.closeShop = function() {
+  game.shopOpen = false;
+  game.currentShopGoods = null;
+  closeModal();
+  log('你离开了商店。');
+};
+
+function victory(early) {
+  const earned = game.adventureGold;
+  const relics = game.relicsCollected;
+  game.adventures++;
+  newGame(false);
+  log(`成功撤离！上次冒险带回 ${earned} 金币，遗物 ${relics} / ${TOTAL_RELICS}。`, 'gold');
+  // 玩家选择撤离后才会自动弹出商店；选否时不会进入此函数
+  setTimeout(() => openShop(true), 150);
+}
+
+function getLeaderboard() {
+  try {
+    const data = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
+    return Array.isArray(data) ? data.filter(r => r && typeof r.score === 'number') : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLeaderboard(records) {
+  const sorted = records
+    .filter(r => r && typeof r.score === 'number')
+    .sort((a, b) => b.score - a.score || b.createdAt - a.createdAt)
+    .slice(0, 10);
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(sorted));
+  return sorted;
+}
+
+function qualifiesForLeaderboard(score) {
+  if (score <= 0) return false;
+  const board = getLeaderboard().sort((a, b) => b.score - a.score);
+  return board.length < 10 || score > board[9].score;
+}
+
+function makeTimestamp(date = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function formatTime(ms) {
+  const d = new Date(ms);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function renderLeaderboard(currentId = '') {
+  const board = getLeaderboard().sort((a, b) => b.score - a.score || b.createdAt - a.createdAt).slice(0, 10);
+  const rows = board.length ? board.map((r, i) => {
+    const rank = i + 1;
+    const icon = rank === 1 ? '👑 ' : rank <= 3 ? '🏆 ' : '';
+    const sizeStyle = rank >= 4 ? ` style="font-size:${Math.max(13, 18 - rank * 0.5)}px"` : '';
+    return `<div class="leader-row rank-${rank}${r.id === currentId ? ' is-current' : ''}" data-record-id="${escapeHtml(r.id)}"${sizeStyle}>
+      <div class="leader-rank">#${rank}</div>
+      <div class="leader-name">${icon}${escapeHtml(r.name)}${r.title ? ` <span style="color:#ffd966">[${escapeHtml(r.title)}]</span>` : ''}</div>
+      <div class="leader-score"><span class="score-num">${r.score}</span><span class="score-unit">金币</span></div>
+      <div class="leader-time">第 ${r.adventures} 次冒险 · 遗物 ${r.relics} / ${TOTAL_RELICS} · ${formatTime(r.createdAt)}</div>
+    </div>`;
+  }).join('') : '<div class="leader-empty">石碑尚无姓名。第一位留下金币的人，将成为古墓记住的亡者。</div>';
+  return `<div class="leaderboard">
+    <div class="leaderboard-title">亡者之碑</div>
+    <div class="leaderboard-subtitle">凡在此留名者，皆为古墓所铭记。</div>
+    <div class="leaderboard-scroll">${rows}</div>
+  </div>`;
+}
+
+function focusCurrentLeaderboardRecord() {
+  setTimeout(() => {
+    const scroller = document.querySelector('.leaderboard-scroll');
+    const current = document.querySelector('.leader-row.is-current');
+    if (!scroller || !current) return;
+    scroller.scrollTop = Math.max(0, current.offsetTop - scroller.offsetTop - 12);
+  }, 40);
+}
+
+function resetProgressAfterDeath() {
+  game.gold = 0;
+  game.adventures = 1;
+  game.hasDagger = false;
+  game.flashlights = 0;
+  game.bombs = 0;
+  game.scrolls = 0;
+  game.ropes = 0;
+  game.hooks = 0;
+  game.antidotes = 0;
+  game.holyLights = 0;
+  game.everHadHolyLight = false;
+  game.hasGun = false;
+  game.bullets = 0;
+  game.backpackLevel = 0;
+  game.gunLevel = 0;
+  game.curseEyeLevel = 0;
+  game.purifyEyeLevel = 0;
+  game.hasMerchantGuild = false;
+  game.collectedRelics = [];
+  game.relicsCollected = 0;
+  game.hourglassUsed = false;
+  game.hourglassPenalty = 0;
+  game.pharaohGateUnlocked = game.pharaohGateUnlocked || false;
+  game.relicWindowIndex = 0;
+  game.relicWindowMaps = 0;
+  game.curseEyeMarks = new Set();
+  game.purifyEyeMarks = new Set();
+  game.adventureGold = 0;
+  game.currentShopGoods = null;
+  game.aim = null;
+  game.modalOpen = false;
+}
+
+function showGameOverSummary(summary, currentId = '') {
+  const relicLine = summary.relics > 0 ? `<p>遗物拾取：${summary.relics} / ${TOTAL_RELICS}</p>` : '';
+  const rankLine = currentId ? '<p style="color:#58d9ff">你的名字已被刻入亡者之碑。</p>' : '';
+  showModal(`
+    <h2 style="color:#d44">☠ 探 险 失 败 ☠</h2>
+    <p>${escapeHtml(summary.reason)}</p>
+    <p>本次探险金币：<span style="color:#ffd966;font-weight:bold">${summary.score}</span></p>
+    ${relicLine}
+    ${rankLine}
+    ${renderLeaderboard(currentId)}
+    <p style="font-size:20px;white-space:nowrap;color:#f4d27a;font-weight:bold">已失去所有冒险进度和财富。</p>
+    <button class="btn" onclick="closeModal();newGame(true)">重新开始</button>
+  `);
+  if (currentId) focusCurrentLeaderboardRecord();
+}
+
+function showLeaderboardEntry(summary) {
+  game.pendingLeaderboardSummary = summary;
+  showModal(`
+    <h2 style="color:#f4d27a">碑 文 将 成</h2>
+    <p>${escapeHtml(summary.reason)}</p>
+    <p>你本次带着 <span style="color:#ffd966;font-weight:bold">${summary.score}</span> 金币倒在古墓深处，已超过亡者之碑的门槛。</p>
+    <input class="leader-input" id="leader-name-input" maxlength="18" placeholder="输入你的名字">
+    <p style="font-size:12px;color:#a08660">若不输入名字，将默认使用“寻宝猎人 + 当前时间戳”。</p>
+    <div class="btn-row">
+      <button class="btn" onclick="submitLeaderboardName()">铭刻姓名</button>
+      <button class="btn" onclick="submitLeaderboardName(true)">匿名铭刻</button>
+    </div>
+    ${renderLeaderboard()}
+  `);
+  setTimeout(() => {
+    const input = document.getElementById('leader-name-input');
+    if (!input) return;
+    input.focus();
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitLeaderboardName();
+    });
+  }, 30);
+}
+
+window.submitLeaderboardName = function(forceDefault = false) {
+  const summary = game.pendingLeaderboardSummary;
+  if (!summary) return;
+  const input = document.getElementById('leader-name-input');
+  const now = Date.now();
+  const rawName = !forceDefault && input ? input.value.trim() : '';
+  const name = rawName || `寻宝猎人${makeTimestamp(new Date(now))}`;
+  const record = {
+    id: `death-${now}-${Math.floor(Math.random() * 100000)}`,
+    name,
+    score: summary.score,
+    relics: summary.relics,
+    adventures: summary.adventures,
+    title: game.pharaohConquered ? '法老征服者' : '',
+    createdAt: now
+  };
+  saveLeaderboard([...getLeaderboard(), record]);
+  game.pendingLeaderboardSummary = null;
+  showGameOverSummary(summary, record.id);
+};
+
+window.showLeaderboardOnly = function() {
+  game.modalOpen = true;
+  showModal(`
+    ${renderLeaderboard()}
+    <button class="btn" onclick="closeModal()">离开石碑</button>
+  `);
+};
+
+window.showNotebook = function(tab = 'monsters') {
+  game.modalOpen = true;
+  const tabs = `
+    <div class="note-tabs">
+      <button class="btn" onclick="showNotebook('monsters')">怪物</button>
+      <button class="btn" onclick="showNotebook('terrains')">地形</button>
+      <button class="btn" onclick="showNotebook('relics')">遗物</button>
+    </div>`;
+  showModal(`
+    <h2>探险笔记</h2>
+    <div class="desc" style="margin-bottom:8px">笔记为全局解锁，死亡不会重置。</div>
+    ${tabs}
+    <div class="note-section">${renderNotebookTab(tab)}</div>
+    <button class="btn" onclick="closeModal()">合上笔记</button>
+  `);
+};
+
+function renderNotebookTab(tab) {
+  const data = getNotebook();
+  if (tab === 'terrains') {
+    return NOTEBOOK_TERRAINS.map(t => data.terrains.includes(t.id)
+      ? `<div class="note-card"><div class="name">${t.name}</div><div>${t.desc}</div></div>`
+      : `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`).join('');
+  }
+  if (tab === 'relics') {
+    return RELIC_DEFS.map(r => data.relics.includes(r.id) || hasRelic(r.id)
+      ? `<div class="note-card"><div class="name">${r.icon} ${r.name}</div><div>${r.desc}</div></div>`
+      : `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`).join('');
+  }
+  return NOTEBOOK_MONSTERS.map(m => {
+    if (!data.monsters.includes(m.id)) return `<div class="note-card locked"><div class="name">？？？</div><div>尚未发现</div></div>`;
+    const killed = data.monsterKills.includes(m.id);
+    return `<div class="note-card"><div class="name">${m.name}</div><div>${m.desc}</div><div style="margin-top:6px;color:${killed ? '#b6ffca' : '#f4d27a'}">${killed ? `击杀方法：${m.kill}` : `线索：${m.hint}`}</div></div>`;
+  }).join('');
+}
+
+function gameOver(reason) {
+  if (game.over) return;
+  game.over = true;
+  stopBgm();
+  const summary = {
+    reason,
+    score: game.adventureGold,
+    relics: game.relicsCollected,
+    adventures: game.adventures
+  };
+  const shouldRecord = qualifiesForLeaderboard(summary.score);
+  resetProgressAfterDeath();
+  if (shouldRecord) showLeaderboardEntry(summary);
+  else showGameOverSummary(summary);
+}
+
+function showModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+window.closeModal = function() {
+  document.getElementById('modal-overlay').classList.remove('active');
+  game.shopOpen = false;
+  game.modalOpen = false;
+};
+
+document.addEventListener('keydown', (e) => {
+  ensureAudioStarted();
+  if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (game.over) {
+    if (e.key.toLowerCase() === 'r') newGame(true);
+    return;
+  }
+  if (game.shopOpen || game.modalOpen) return;
+  switch (e.key) {
+    case 'ArrowUp': case 'w': case 'W': e.preventDefault(); if (!game.aim && !game.teleportSelect) tryMove(0, -1); break;
+    case 'ArrowDown': case 's': case 'S': e.preventDefault(); if (!game.aim && !game.teleportSelect) tryMove(0, 1); break;
+    case 'ArrowLeft': case 'a': case 'A': e.preventDefault(); if (!game.aim && !game.teleportSelect) tryMove(-1, 0); break;
+    case 'ArrowRight': case 'd': case 'D': e.preventDefault(); if (!game.aim && !game.teleportSelect) tryMove(1, 0); break;
+    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+      selectItemSlot(parseInt(e.key, 10) - 1);
+      break;
+    case ' ': case 'Spacebar':
+      e.preventDefault();
+      if (game.aim) { confirmAim(); break; }
+      useSelectedItem();
+      break;
+    case 'r': case 'R': if (confirm('重新开始？')) newGame(false); break;
+  }
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  ensureAudioStarted();
+  if (confirm('重新开始？')) newGame(false);
+});
+document.getElementById('notebook-btn').addEventListener('click', () => {
+  ensureAudioStarted();
+  showNotebook('monsters');
+});
+document.getElementById('leaderboard-btn').addEventListener('click', () => {
+  ensureAudioStarted();
+  showLeaderboardOnly();
+});
+document.getElementById('sound-btn').addEventListener('click', () => {
+  audioState.enabled = !audioState.enabled;
+  document.getElementById('sound-btn').textContent = audioState.enabled ? '声音：开' : '声音：关';
+  if (audioState.enabled) {
+    audioState.started = true;
+    updateBgmState(true);
+  } else {
+    stopBgm();
+  }
+});
+
+// === Item Grid System ===
+const ITEM_DEFS = [
+  { id: 'dagger', name: '匕首', icon: '🗡️', type: 'permanent', use: () => attackAdjacent() },
+  { id: 'gun', name: '手枪', icon: '🔫', type: 'directional', use: () => useGun() },
+  { id: 'flash', name: '照明棒', icon: '🔦', type: 'directional', use: () => useFlashlight() },
+  { id: 'bomb', name: '炸弹', icon: '💣', type: 'consumable', use: () => placeBomb() },
+  { id: 'antidote', name: '解毒剂', icon: '🧪', type: 'consumable', use: () => useAntidote() },
+  { id: 'holy', name: '圣光术', icon: '☀', type: 'consumable', use: () => useHolyLight() },
+  { id: 'scroll', name: '传送卷轴', icon: '📜', type: 'consumable', use: () => useScroll() },
+  { id: 'rope', name: '绳索', icon: '🪢', type: 'consumable', use: () => useRope() },
+  { id: 'hook', name: '钩爪', icon: '🪝', type: 'directional', use: () => useHook() },
+  { id: 'hourglass', name: '碎魂沙漏', icon: '⌛', type: 'relic', use: () => useHourglass() },
+];
+
+function getPlayerItems() {
+  const items = [];
+  if (game.hasDagger) items.push(ITEM_DEFS[0]);
+  if (game.hasGun) items.push({ ...ITEM_DEFS[1], name: game.gunLevel >= 2 ? '手枪·圣弹' : '手枪', count: game.bullets });
+  if (game.flashlights > 0) items.push({ ...ITEM_DEFS[2], count: game.flashlights });
+  if (game.bombs > 0) items.push({ ...ITEM_DEFS[3], count: game.bombs });
+  if (game.antidotes > 0) items.push({ ...ITEM_DEFS[4], count: game.antidotes });
+  if (game.holyLights > 0) items.push({ ...ITEM_DEFS[5], count: game.holyLights });
+  if (game.scrolls > 0) items.push({ ...ITEM_DEFS[6], count: game.scrolls });
+  if (game.ropes > 0) items.push({ ...ITEM_DEFS[7], count: game.ropes });
+  if (game.hooks > 0) items.push({ ...ITEM_DEFS[8], count: game.hooks });
+  if (hasRelic('soul_hourglass') && !game.hourglassUsed) items.push(ITEM_DEFS[9]);
+  return items;
+}
+
+function getItemSprite(id) {
+  const map = {
+    dagger: 'item_dagger.png',
+    gun: 'item_gun.png',
+    flash: 'item_flash.png',
+    bomb: 'item_bomb.png',
+    antidote: 'item_antidote.png',
+    holy: 'item_holy.png',
+    scroll: 'item_scroll.png',
+    rope: 'item_rope.png',
+    hook: 'item_hook.png',
+    hourglass: 'item_hourglass.png',
+  };
+  return map[id] ? `assets/sprites/${map[id]}` : '';
+}
+
+function renderItemGrid() {
+  const grid = document.getElementById('item-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const items = getPlayerItems();
+  const bagStatus = document.getElementById('bag-status');
+  if (bagStatus) bagStatus.textContent = `背包 ${getConsumableStackIds().length} / ${getBackpackCapacity()}`;
+  for (let i = 0; i < 9; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'item-slot';
+    if (i === game.selectedSlot) slot.classList.add('selected');
+    const item = items[i];
+    if (item) {
+      slot.innerHTML = `
+        <span class="slot-num">${i + 1}</span>
+        <span class="slot-icon" style="background-image:url('${getItemSprite(item.id)}')">${item.icon}</span>
+        <span class="slot-name">${item.name}</span>
+        ${item.count !== undefined ? `<span class="slot-count">×${item.count}</span>` : ''}
+      `;
+      slot.addEventListener('click', () => {
+        selectItemSlot(i);
+        useSelectedItem();
+      });
+    } else {
+      slot.classList.add('empty');
+      slot.innerHTML = `<span class="slot-num">${i + 1}</span>`;
+    }
+    grid.appendChild(slot);
+  }
+  renderPermanentList();
+}
+
+function renderPermanentList() {
+  const el = document.getElementById('permanent-list');
+  if (!el) return;
+  const list = [];
+  if (game.hasDagger) list.push('匕首');
+  if (game.hasGun) list.push(game.gunLevel >= 2 ? '手枪·圣弹' : game.gunLevel >= 1 ? '手枪·穿透' : '手枪');
+  if (game.backpackLevel > 0) list.push(`背包扩容 ${game.backpackLevel}`);
+  if (game.curseEyeLevel > 0) list.push(`诅咒之眼 ${game.curseEyeLevel}`);
+  if (game.purifyEyeLevel > 0) list.push(`净化之眼 ${game.purifyEyeLevel}`);
+  if (game.hasMerchantGuild) list.push('商会会员');
+  if (game.hasPharaohSeal) list.push('法老之印');
+  el.innerHTML = list.length ? list.map(x => `<span>${x}</span>`).join('') : '暂无';
+}
+
+function selectItemSlot(index) {
+  const items = getPlayerItems();
+  if (index >= items.length) return;
+  game.selectedSlot = index;
+  renderItemGrid();
+}
+
+function useSelectedItem() {
+  const items = getPlayerItems();
+  const idx = game.selectedSlot || 0;
+  if (idx >= items.length) return;
+  const item = items[idx];
+  if (game.aim) {
+    if (game.aim.itemId === item.id) {
+      cancelAim('已取消瞄准，物品未消耗。');
+      return;
+    }
+    cancelAim();
+  }
+  if (game.teleportSelect) {
+    if (item.id === 'scroll') {
+      game.teleportSelect = null;
+      log('已取消传送，卷轴未消耗。');
+      render();
+      return;
+    }
+    game.teleportSelect = null;
+  }
+  if (item.type === 'permanent') {
+    log('匕首是永久武器，会在接近怪物时自动使用。');
+    return;
+  }
+  item.use();
+}
+
+newGame(true);
+</script>
+
+</body>
+</html>
